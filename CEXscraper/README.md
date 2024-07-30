@@ -68,3 +68,6 @@ smarter search function would be a noble quest for another time!
 To supercharge the scraping prowess, I could dive into the realm of multithreading. By deploying multiple threads 
 simultaneously, we can perform several product searches in parallel. This will drastically cut down our execution time, 
 transforming our script from a single-threaded tortoise into a lightning-fast data-harvesting Dodge Viper (AOE ref).
+
+## V1.1
+Tackling async
