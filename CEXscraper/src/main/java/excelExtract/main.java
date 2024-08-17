@@ -3,9 +3,10 @@ package excelExtract;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class main {
-    public static void main (String[] args) throws IOException {
+    public static void main (String[] args) throws IOException, ExecutionException, InterruptedException {
         ArrayList<String> stores = new ArrayList<>();
 //        stores.add("WRT PINHAL NOVO");
         stores.add("WRT MOZELOS");
