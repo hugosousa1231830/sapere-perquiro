@@ -17,6 +17,9 @@ This project represents a personal aspiration that predates my coding journey. I
 specialized application and may be challenging to replicate, as it relies on an Excel file with specific entries that 
 I am unable to share.
 
+3. **EDAandKafka**:
+This project is like a sandbox where I will hopefuly implement a few EDA concepts and use kafka. 
+
 
 ## Learned concepts
 1. Asynchronous tasks (CEXScraper):
