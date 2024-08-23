@@ -11,51 +11,48 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-public class CEXScraper {
+public class CEXScraper_v2 {
 
     /**
      * Fetches information for a list of items from the CEX website.
      *
      * @param itemList The list of items to fetch information for.
      * @return A list of items with updated information from the CEX website.
-     * @throws ExecutionException   If an error occurs while waiting for the computation to complete.
-     * @throws InterruptedException If the current thread was interrupted while waiting.
      */
-    public static List<Item> getCEXinfo(List<Item> itemList) throws ExecutionException, InterruptedException {
-
+    public static List<Item> getCEXinfo(List<Item> itemList) {
         System.setProperty("webdriver.chrome.driver", "CEXscraper/chromedriver-win64/chromedriver.exe");
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--remote-allow-origins=*");
         WebDriver driver = new ChromeDriver(options);
 
-        // Fits we create an array that holds multiple future<item>, this will hold all cex query results
-        List<CompletableFuture<Item>> futures = new ArrayList<>();
+        List<Item> scraperResult = new ArrayList<>();
 
-        for (Item item : itemList) {
-            // This will create a future for each item, and add to the above List
-            CompletableFuture<Item> future = CompletableFuture.supplyAsync(() -> scrapeItemInfo(driver, item));
-            futures.add(future);
+        int totalItems = itemList.size();
+        int progressInterval = Math.max(totalItems / 10, 1);
+
+        int processedItems = 0;
+
+        try {
+            for (Item item : itemList) {
+                try {
+                    // Sequentially scrape information for each item
+                    Item result = scrapeItemInfo(driver, item);
+                    scraperResult.add(result);
+                } catch (Exception e) {
+                    System.err.println("Error processing item: " + item.getWrtItemName());
+                    e.printStackTrace();
+                }
+
+                processedItems++;
+                if (processedItems % progressInterval == 0 || processedItems == totalItems) {
+                    System.out.println("Progress: " + (processedItems * 100 / totalItems) + "%");
+                }
+            }
+        } finally {
+            driver.quit();
         }
 
-        /* So considering we have a "futures" List with a bunch of futures waiting to be completed, we must create an
-        overarching future object which will be fulfilled once all the futures within that List are finished. Once all
-        the futures are done, thus making the overarching future also done, it will turn that list into a stream and
-        call join() on each future to extract the resulting Item. Once it extracts all the Item objects, it turns them
-        into a List using toList and uses .get() to obtain and return that list.
-         */
-        CompletableFuture<Void> listUnderway = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-        List<Item> scraperResult = listUnderway
-                .thenApply(placeholder -> futures.stream()
-                        .map(CompletableFuture::join)
-                        .collect(Collectors.toList()))
-                .get();
-
-        driver.quit();
         return scraperResult;
     }
 
@@ -75,22 +72,29 @@ public class CEXScraper {
 
             WebElement itemNameElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("line-clamp")));
             String itemName = itemNameElement.getText();
-            System.out.println(itemName);
 
             WebElement priceElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("cash-price")));
             String price = priceElement.getText().substring(10).trim();
-            System.out.println(price);
 
             item.setCexItemName(itemName);
             item.setCexBuyPrice(price);
         } catch (Exception e) {
+            System.err.println("Error scraping item: " + item.getWrtItemName());
             e.printStackTrace();
+            item.setCexItemName("Error");
+            item.setCexBuyPrice("N/A");
         }
+
         return item;
     }
 
-    // CEX search always substitutes spaces with %20, therefore...
-    private static String composeProductURL(String product){
+    /**
+     * Composes the URL for searching a product on the CEX website.
+     *
+     * @param product The product name to search for.
+     * @return The composed URL.
+     */
+    private static String composeProductURL(String product) {
         return "https://pt.webuy.com/sell/search?stext=" + product.replaceAll(" ", "%20");
     }
 }

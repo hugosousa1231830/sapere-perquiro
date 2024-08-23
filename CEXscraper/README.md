@@ -69,5 +69,21 @@ To supercharge the scraping prowess, I could dive into the realm of multithreadi
 simultaneously, we can perform several product searches in parallel. This will drastically cut down our execution time, 
 transforming our script from a single-threaded tortoise into a lightning-fast data-harvesting Dodge Viper (AOE ref).
 
-## V1.1
-Tackling async
+## V1
+The first iteration of the script is a simple proof of concept. It reads a list of product names from an Excel file,
+searches for them on CEX, and writes the first price found back to a new Excel file. There are several issue with this
+version, such as the fact that the search is not very accurate, and the script is not very efficient. I learned that
+WebDriver is not thread safe, which leads the program to have loads of issues when trying to run multiple threads, often
+even having memory leaks.
+
+## V2   
+After the webdriver disappointment, I decided to maintain a single thread, but I added a lot of improvements to the script.
+A possible alternative would be to create several instances of the webdriver, but that would be a lot more complicated and
+I am not sure if it would be worth it.
+Changelog:
+1. Ensured only the items that have significant price differences are written to the output file.
+2. Added feedback via console which signals how many items were obtained from the excel file and the current % of completion
+during CEX scraping.
+3. Added an extra filter for item types. This is because CEX will never have fridges and other large items;
+4. Added a convenient place to add stores and types on the main function. This could be done in a config file, but this
+should be enough for now.
