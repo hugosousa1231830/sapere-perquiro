@@ -12,11 +12,36 @@ import java.util.List;
 
 public class OutputExcel {
 
-    public static void toExcel(List<Item> itemList) throws IOException {
+    public static void toExcel(List<Item> itemList) {
         try (Workbook outputBook = new XSSFWorkbook()) {
             Sheet outputSheet = outputBook.createSheet("FilteredData");
 
-            int outputRowNumber = 0;
+            // Create the header row
+            Row headerRow = outputSheet.createRow(0);
+
+            Cell headerWrtName = headerRow.createCell(0);
+            headerWrtName.setCellValue("WrtName");
+
+            Cell headerCEXName = headerRow.createCell(1);
+            headerCEXName.setCellValue("CexName");
+
+            Cell headerWrtPrice = headerRow.createCell(2);
+            headerWrtPrice.setCellValue("WRTprice");
+
+            Cell headerCEXPrice = headerRow.createCell(3);
+            headerCEXPrice.setCellValue("CEXprice");
+
+            Cell headerWrtLink = headerRow.createCell(4);
+            headerWrtLink.setCellValue("WrtLink");
+
+            Cell headerCexLink = headerRow.createCell(5);
+            headerCexLink.setCellValue("CexLink");
+
+            Cell headerStore = headerRow.createCell(6);
+            headerStore.setCellValue("Location");
+
+            // Start filling data from row 1
+            int outputRowNumber = 1;
             for (Item item : itemList) {
 
                 if (Double.parseDouble(item.getCexBuyPrice()) < Double.parseDouble(item.getWrtSellPrice())) {
@@ -38,10 +63,14 @@ public class OutputExcel {
                 outputCEXPrice.setCellValue(item.getCexBuyPrice());
 
                 Cell outputWrtLink = outputRow.createCell(4);
-                String ean = item.getWrtEAN(); // this gives me a float point number, thats why I use replace below
-                outputWrtLink.setCellFormula("HYPERLINK(\"https://www.worten.pt/search?query=" + ean.replace(".0","") + "\", \"Click Here\")");
+                String ean = item.getWrtEAN(); // this gives me a float point number, that's why I use replace below
+                outputWrtLink.setCellFormula("HYPERLINK(\"https://www.worten.pt/search?query=" + ean.replace(".0","") + "\", \"link\")");
 
-                Cell outputStore = outputRow.createCell(5);
+                Cell outputCexLink = outputRow.createCell(5);
+                String cexUrl = item.getCexURL();
+                outputCexLink.setCellFormula("HYPERLINK(\"" + cexUrl + "\", \"link\")");
+
+                Cell outputStore = outputRow.createCell(6);
                 outputStore.setCellValue(item.getWrtStore());
             }
 

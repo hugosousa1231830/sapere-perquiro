@@ -11,4 +11,5 @@ public class Item {
     private String wrtStore;
     private String cexItemName;
     private String cexBuyPrice;
+    private String cexURL;
 }
