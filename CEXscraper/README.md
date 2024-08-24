@@ -68,9 +68,13 @@ during CEX scraping.
 4. Added a convenient place to add stores and types on the main function. This could be done in a config file, but this
 should be enough for now.
 
+## V3
+Looking at the spanish cex site, it seems the page composition is the same, which means the only things that needs to be
+changed when looking at the portuguese or spanish site is the URL. Modified the scraper to receive a URL as argument. This
+inverts the dependency, as the caller is now responsible for providing the URL, making it easier to swap between different
+sites. This also makes it easier to add more sites in the future, as the scraper is now more generic.
+
 # Next steps
 
 1. Adapt source to be from a website database (vinted/wallapop)
-2. Inject CEX url into the CEXScraper class so multiple CEXScraper instances can be created with different URLs (looking to
-look into .es site, possibly .fr too)
 3. Add a config file for the stores and types

@@ -7,10 +7,14 @@ import java.util.List;
 public class main {
 
     public static void main (String[] args) throws IOException {
+        // LIST OF URLS:
+        String cexPT = "https://pt.webuy.com/sell/search?stext=";
+        String cexES = "https://es.webuy.com/sell/search?stext=";
 
         // LIST OF STORES:
         ArrayList<String> stores = new ArrayList<>();
         stores.add("WRT MOZELOS");
+        /*
         stores.add("WMB PARQUE NASCENTE");
         stores.add("WRT MAIA JARDIM");
         stores.add("WRT Gaia Jardim");
@@ -23,6 +27,8 @@ public class main {
         stores.add("WRT Matosinhos");
         stores.add("WRT Gaiashopping");
 
+
+         */
 
         // LIST OF ITEM TYPES:
         ArrayList<String> types = new ArrayList<>();
@@ -49,7 +55,7 @@ public class main {
         String path = "CEXscraper/07. Listagem Descontinuados 1 a 31 de Julho 2024_wtalk.xlsx";
 
         List<Item> itemsFromExcel = WRTExcelSource.getSellPrices(stores, types, path);
-        List<Item> itemsFromExcelWithCEXPrices = CEXScraper_v2.getCEXinfo(itemsFromExcel);
+        List<Item> itemsFromExcelWithCEXPrices = CEXScraper_v3.getCEXinfo(itemsFromExcel,cexPT);
         OutputExcel.toExcel(itemsFromExcelWithCEXPrices);
     }
 }

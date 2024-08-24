@@ -43,7 +43,6 @@ public class OutputExcel {
             // Start filling data from row 1
             int outputRowNumber = 1;
             for (Item item : itemList) {
-
                 if (Double.parseDouble(item.getCexBuyPrice()) < Double.parseDouble(item.getWrtSellPrice())) {
                     continue;
                 }
