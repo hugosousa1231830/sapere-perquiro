@@ -83,7 +83,7 @@ public class CEXScraper_v2 {
             System.err.println("Error scraping item: " + item.getWrtItemName());
             e.printStackTrace();
             item.setCexItemName("Error");
-            item.setCexBuyPrice("N/A");
+            item.setCexBuyPrice("0");
         }
 
         return item;

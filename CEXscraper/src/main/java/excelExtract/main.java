@@ -11,7 +11,7 @@ public class main {
         // LIST OF STORES:
         ArrayList<String> stores = new ArrayList<>();
         stores.add("WRT MOZELOS");
-    /*    stores.add("WMB PARQUE NASCENTE");
+        stores.add("WMB PARQUE NASCENTE");
         stores.add("WRT MAIA JARDIM");
         stores.add("WRT Gaia Jardim");
         stores.add("WRT Arrábida Shop LC");
@@ -22,7 +22,7 @@ public class main {
         stores.add("WRT MAIA");
         stores.add("WRT Matosinhos");
         stores.add("WRT Gaiashopping");
-     */
+
 
         // LIST OF ITEM TYPES:
         ArrayList<String> types = new ArrayList<>();
@@ -42,7 +42,7 @@ public class main {
         types.add("5410 - Calculadoras");
         types.add("5501 - Desbloqueados");
         types.add("5709 - Acessorios Tablet");
-        types.add(" 5711 - Acessorios Gaming");
+        types.add("5711 - Acessorios Gaming");
 
 
 
