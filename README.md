@@ -10,30 +10,28 @@ within this repository primarily serves to document my learning experiences and 
 1. **Smart-Home**: 
 This project was developed as part of my Software Development training course (Switch). It is not 
 intended to replicate a full-fledged smart home system. Many features are not implemented, as the project adhered 
-strictly to the defined user stories and did not extend beyond them.
+strictly to the defined user stories and did not extend beyond them. It is a great source of a lot of things, including 4
+clean architecture, DDD, GRASP/SOLID principles, devops, databases, testing, design and analysis of requirements, and much
+more. The project was created by a group of 10 students, and I have received their permission to use it as part of my
+portfolio. 
 
 2. **CEXscraper**: 
-This project represents a personal aspiration that predates my coding journey. It is designed as a 
-specialized application and may be challenging to replicate, as it relies on an Excel file with specific entries that 
-I am unable to share.
+This project represents a personal aspiration that predates my coding journey. Upon receiving the minimum viable knowledge
+required to implement it, I decided to pursue this project as a means of consolidating my learning and gaining practical
+experience. The project follows the process of obtaining information from an excel file, utilizing Selenium to scrape data
+from the CEX website, and storing relevant data in a new excel file. The project explores concepts such as web scraping,
+webdrivers, use of Selenium, a pinch of asynchronous programming and it is so different from a normal project that it was
+also a challenge to implement a reasonable architecture.
 
-3. **EDAandKafka**:
-This project is like a sandbox where I will hopefuly implement a few EDA concepts and use kafka. 
+3. **kafka_eda**:
+This project is a simple implementation of an Event-Driven Architecture (EDA) using Apache Kafka. It is 
+intended to demonstrate the basic concepts of EDA and Kafka, and to provide a starting point for further exploration. 
+The readme file contains a theoretical overview of EDA and Kafka, setting up kafka in a docker container, and using
+springboot to aid on the implementation of kafka producers and consumers.
 
+4. **GraphQl**:
+This project aimed to explore the GraphQl technology and its implementation in Java. There is a theoretical part and a 
+practical part where I implemented a simple GraphQl server and used GraphiQL to test it.
 
-## Learned concepts
-1. Asynchronous tasks (CEXScraper):
-   Tackling async: While searching for a way to sort this I came across the notion of future and completable future, which seems to be something related to java 8.
-   A future object represents the result of an async computation and acts as a placeholder for a value that will be available at some point. The future object can be
-   queried to check the status of the computation, retrieve the results once they are available or cancel. To do this there are methods like: 
-get() - This waits for the computation to complete and retrieves the result
-isDone() - Checks if complete
-cancel() - Cancels the computation
-isCancelled() - Checks if the computation was canceled
-
-A completableFuture is an implementation of future and provides
-   additional methods to handle async tasks. Some interesting uses involve chaining tasks, combining multiple futures using allof and anyof. I will try to implement this
-   as it might be a way of handling multiple tasks (like in our scraper for loop) and once all of them are done, signal the method to finally return the whole thing. 
-
-
+   
 
