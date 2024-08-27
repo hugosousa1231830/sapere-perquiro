@@ -949,7 +949,6 @@ the methods the JPA repository offers, because they will not be declared in our 
 we override to add/change functionality).
 
 Let's then create our JPA repository interfaces for each entity:
-
 ```java
 package tutorials.databases.service.repositories;
 
@@ -961,7 +960,6 @@ public interface JpaAuthorRepository extends JpaRepository<Author, String>, Auth
 
 }
 ```
-
 ```java
 package tutorials.databases.service.repositories;
 
@@ -972,7 +970,6 @@ import tutorials.databases.repositories.PublisherRepository;
 public interface JpaPublisherRepository extends JpaRepository<Publisher, String>, PublisherRepository {
 }
 ```
-
 ```java
 package tutorials.databases.service.repositories;
 
@@ -992,7 +989,7 @@ interface, we ensure that the services can work with any repository implementati
 
 2. Why are we using the String type for the ID? It is rather common to have an Id object. This is because normally Ids 
 have business/validation logic and whatnot, I am not too worried about it, and am lazy to create an Id object, so I'll just
-use a String as an Id (even though I could use a UUID, but nevermind).
+use a String as an Id (even though I could use a UUID object, but never mind).
 
 3. Where are the methods? The methods the JPA specifies are not declared in the custom repository interfaces. They can be
    looked at by following the chain of implementations. So you don't have to go through the names of the methods, I will show
@@ -1168,6 +1165,142 @@ spring.jpa.show-sql=true
 ```
 Feel free to use the previous commands on postman to test the application with mySQL
 
+## Creating a MongoDB repository using Spring Data MongoDB
+MongoDB is a NoSQL database that stores data in a flexible, JSON-like format called BSON (Binary JSON). Instead of using 
+tables and rows like traditional SQL databases, MongoDB uses collections and documents. 
+
+Documents: These are individual records, similar to rows in relational databases, but they can have varying structures. 
+Each document is a set of key-value pairs. Each individual entry in a MongoDB collection is a document. An example of a 
+document in a collection of authors might look like this:
+```json
+{
+   "_id": "1",
+   "name": "John Doe",
+   "address": "123 Main
+}
+```
+Collections: These are "bags" of documents. They are analogous to tables in relational databases, but they don't enforce
+a schema. This means individual documents in a collection can have different fields and structures.
+
+To perform operations on MongoDB, we use several commands, such as find, insert, update, and delete. MongoDB also provides
+a query language that allows for complex queries and aggregations. We will not go into detail about MongoDB's query language
+in this tutorial, but we will demonstrate how to interact with MongoDB using Spring Data MongoDB, which will abstract away
+many of the complexities of working with MongoDB directly. Our goal really is to make sure that when we hit postman, the
+request is processed and the response is returned, and its the same for all databases.
+
+Considering we have most of the work done already, we will only need to create the MongoDB repository interface and let
+Spring Data MongoDB handle the rest. Let's create the MongoDB repository interfaces for each entity:
+```java
+
+package tutorials.databases.service.repositories;
+
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+import tutorials.databases.domain.Author;
+
+public interface MongoAuthorRepository extends MongoRepository<Author, String>, AuthorRepository {
+}
+```
+```java
+package tutorials.databases.service.repositories;
+
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+import tutorials.databases.domain.Publisher;
+
+public interface MongoPublisherRepository extends MongoRepository<Publisher, String>, PublisherRepository {
+}
+```
+```java
+package tutorials.databases.service.repositories;
+
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+import tutorials.databases.domain.Book;
+
+public interface MongoBookRepository extends MongoRepository<Book, String>, BookRepository {
+}
+```
+You might be tempted to check what MongoRepository offers and will quickly find out it actually implements the 
+ListCrudRepository<T, ID>, ListPagingAndSortingRepository and ListQueryByExampleExecutor<T> interfaces. This means that,
+like with JPA, we get all the CRUD methods for free. We just need to make sure the "complex" methods are available in the
+MongoBookRepository interface:
+```java
+Collection<Book> findBooksByAuthorId (String authorId);
+boolean deleteAllByAuthorId(String authorId);
+```
+You will also notice that these methods are the same as the ones we created for the JPA repository. This is because we 
+are still being helped by Spring Data to generate the queries for us. And regardless if it is a SQL or NoSQL database, the
+methods are the same at this level.
+
+Which means we are done setting up the MongoDB repository. We can now test the application with MongoDB. In application
+properties, add the following:
+```properties
+spring.data.mongodb.uri=mongodb://localhost:27017/mydb
+```
+
+## Dealing with multiple databases - DEVOPS
+If we simply change the application properties to switch between databases and run the application, an error will occur. 
+This happens because when Spring Boot starts, it automatically scans the application for components, including repository 
+beans. If it encounters multiple implementations of the same repository interface—like JpaAuthorRepository and 
+MongoAuthorRepository—it can become confused about which one to instantiate and inject into your services.
+
+Spring Boot is designed to auto-configure beans based on the components it finds during the classpath scan. However, when 
+multiple beans fulfill the same role—such as repositories that implement the same interface but are designed for different 
+databases (JPA vs. MongoDB)—Spring Boot doesn't know which one to prioritize. This can lead to conflicts, where Spring Boot 
+either fails to start or throws an error because it's attempting to register multiple beans with the same name or purpose.
+On this case it might seem confusing, because why is springboot confused when I clearly have an interface for JPARepository
+and another for MongoRepository? The problem is that Spring Boot is not confused about the interfaces, but about the
+implementations. It is not sure which implementation to use when trying to inject the repository into the service (remember
+our broad service interface that is implemented by the JPARepository and the MongoRepository).
+
+To avoid these conflicts and ensure that Spring Boot loads the correct repository beans, we need to guide the framework 
+on which implementation to use. This can be achieved through two primary methods: Profile-Based Configuration and Conditional 
+Bean Creation. These methods allow you to specify exactly which repository beans should be loaded depending on the active 
+profile or specific properties set in your application configuration. By doing so, you can ensure that your application 
+remains flexible and scalable while avoiding conflicts during the startup process.
+
+I will showcase both as I find them really interesting, although I find that the conditional bean creation is more elegant
+and easier to understand.
+
+### Profile-Based Configuration
+Profile-based configuration allows you to define different sets of beans based on the active profile. By specifying the
+profile in your application properties or configuration file, you can control which beans are loaded at runtime. For example
+if we annotate the JPA repository with @Profile("jpa") and the Mongo repository with @Profile("mongo"), we can then
+add a line to the application properties to specify which profile to use:
+```properties
+spring.profiles.active=jpa
+```
+This will tell Spring Boot to load the beans annotated with @Profile("jpa") and ignore the ones annotated with @Profile("mongo").
+This is a simple and effective way to manage different configurations for different environments or databases. However, it
+can become cumbersome when dealing with multiple profiles or complex configurations. In such cases, conditional bean creation
+may offer a more flexible and concise solution.
+
+### Conditional Bean Creation
+Instead of relying on profiles, conditional bean creation allows you to specify conditions for bean creation based on
+properties or other factors. This approach provides more granular control over which beans are loaded and can be more
+flexible than profile-based configuration. By using annotations like @ConditionalOnProperty, you can define conditions
+that determine whether a bean should be created or not. This is particularly useful when you need to switch between different
+implementations based on specific properties or configurations. Let's annotate the three JPA repositories with:
+```java
+@Repository
+@ConditionalOnProperty(name = "app.database.type", havingValue = "jpa")
+public interface JpaAuthorRepository extends AuthorRepository, JpaRepository<Author, String> {
+}
+```
+We can do the same for our mongo repositories:
+```java
+@Repository
+@ConditionalOnProperty(name = "app.database.type", havingValue = "mongo")
+public interface MongoAuthorRepository extends AuthorRepository, MongoRepository<Author, String> {
+}
+```
+And finally in our application properties, we can specify which database to use:
+```properties
+app.database.type=mongo
+```
+The @ConditionalOnProperty annotation will scan the application properties for the property "app.database.type" and check
+if its value is "jpa" or "mongo". Based on this value, the corresponding repository bean will be created. EZPZ
 
 
 
