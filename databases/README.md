@@ -430,8 +430,752 @@ encounter any issues, make sure Docker is installed and running on your system. 
 the containers are running.
 
 # Designing the Project Structure
+In this section, we'll explore how to implement repositories using Java Spring Boot and Spring Data across various databases, 
+including MySQL, PostgreSQL, MongoDB, Cassandra, and Redis. By focusing on practical use cases, we'll highlight the unique 
+characteristics of each database, starting with the basic setup and configuration required to integrate these technologies 
+into a Spring Boot application.
+
+We'll begin by implementing basic CRUD (Create, Read, Update, Delete) operations, demonstrating how Spring Data repositories 
+can simplify data management across different database paradigms, from traditional relational models to document-oriented 
+and key-value stores. Following this, we'll delve into custom querying, where we'll explore how each database handles more 
+complex data retrieval scenarios, showcasing both the strengths and limitations inherent to each system.
+
+Additionally, we'll discuss transaction management and data consistency, emphasizing the differences in how these databases 
+ensure data integrity.
+
+## The dataset
+To demonstrate the capabilities of each database, we'll use a simple dataset consisting of a content management system with
+authors, books, and publishers:
+
+| **Entity** | **Field**     | **Description**                                                        |
+|------------|---------------|------------------------------------------------------------------------|
+| **Author** | `id`          | Unique identifier for the author                                       |
+|            | `name`        | Full name of the author                                                |
+|            | `address`     | Author address                                                         |
+| **Publisher** | `id`          | Unique identifier for the publisher                                    |
+|            | `name`        | Name of the publisher (must be unique)                                 |
+|            | `address`     | Physical or mailing address of the publisher                           |
+| **Book**   | `id`          | Unique identifier for the book                                         |
+|            | `title`       | Title of the book                                                      |
+|            | `genre`       | Genre or category of the book                                          |
+|            | `authorId`    | Foreign key/reference to the `id` in the `authors` entity       |
+|            | `publisherId` | Foreign key/reference to the `id` in the `publishers` entity |
+
+## The architecture
+We will be using clean architecture to organize our project. This architectural pattern emphasizes separation of concerns
+and modularity, making it easier to maintain and extend the application. It also works great in one of our objectives which
+is to make the application work with different databases, therefore inversion of control is a must. The layers will 
+include the following components:
+- Domain Model: Represents the data entities used in the application (Authors, Books, Publishers).
+- Controller: Handles incoming HTTP requests, processes them, and returns the appropriate HTTP response. There will be a
+single controller for each entity (Authors, Books, Publishers), and they should work for all databases.
+- Service: Contains the business logic and acts as an intermediary between the controller and the repository. There will
+be a single service for each entity, and they should work for all databases.
+- Repository: Communicates with the database to perform CRUD operations and data retrieval. For SQL databases, we will use
+a single JPA repository for each entity. For NoSQL databases, we will create custom repositories tailored to each database.
+- Data Model: Represents the data entities used in the application. Each entity will have a corresponding model class that
+defines the structure of the data. Even though it should match the domain model, we probably will create a separate class 
+for each database to avoid confusion.
+
+## The use cases
+We will be implementing a set of use cases to demonstrate the capabilities of each database. These use cases will cover basic
+CRUD operations, complex queries, transaction consistency, and more. By comparing how each database handles these scenarios,
+we can gain insights into their strengths and limitations. The use cases will be designed to showcase the unique features of
+each database, highlighting their suitability for different types of applications. Check the table below for a detailed
+description of each use case:
+
+| **Topic**                | **Database**                          | **Objective**                                                        | **Simple Use Case**                                               | **Complex Use Case**                                                                            |
+|--------------------------|---------------------------------------|----------------------------------------------------------------------|-------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| **CRUD Operations**      | **Relational Databases (MySQL, PostgreSQL, H2)** | Demonstrate basic and advanced CRUD operations.                      | Create a new author.                                             | Add a new book with associated author and publisher information.                              |
+|                          | **MongoDB**                           | Demonstrate CRUD operations with a flexible schema.                   | Create a new document for an author.                              | Add a new document for a book with embedded author and publisher information.                 |
+|                          | **Cassandra**                         | Show CRUD operations with a focus on high-throughput and scalability. | Create a new entry for an author.                                 | Add a new book entry with associated author and publisher information.                         |
+|                          | **Redis**                            | Showcase CRUD operations using Redis data structures.                 | Add a new author using Redis hashes.                              | Add a new book with associated author and publisher details using Redis hashes and sets.      |
+| **Complex Queries**      | **Relational Databases (MySQL, PostgreSQL, H2)** | Showcase the ability to perform and optimize complex queries.          | Find all books by a specific author using SQL queries.             | Use SQL joins and aggregations to find the number of books per genre and sort the results by count. |
+|                          | **MongoDB**                           | Showcase the ability to perform and optimize complex queries.          | Find all books by a specific author using MongoDB’s query language. | Use MongoDB’s aggregation framework to find the number of books per genre and sort by count.  |
+|                          | **Cassandra**                         | Demonstrate high-throughput querying and data modeling.               | Retrieve books by a specific tag.                                 | Retrieve books published in the last year, grouped by category, optimized for high read throughput. |
+|                          | **Redis**                            | Highlight querying and caching capabilities.                           | Cache details of a popular book to improve read performance.      | Implement real-time updates for book information and maintain a sorted list of top books.     |
+| **Transaction Consistency** | **Relational Databases (MySQL, PostgreSQL, H2)** | Illustrate transaction management and ACID properties.                | Update the title of a book and ensure consistency with ACID.      | Perform a multi-step operation where a book’s genre is updated and related statistics are adjusted. |
+|                          | **MongoDB**                           | Show multi-document transaction support and consistency maintenance.  | Update a book’s publication date within a single document.        | Use multi-document transactions to update a book’s details and its associated author’s bio.  |
+|                          | **Cassandra**                         | Explain eventual consistency and distributed transaction handling.    | Update the genre of a book and ensure consistency across nodes.   | Perform a distributed transaction to update book details and related metadata, managing eventual consistency. |
+|                          | **Redis**                            | Explore transaction support and atomicity.                            | Update cached data for a book’s details using Redis transactions. | Use Redis transactions (MULTI/EXEC) to update book details, ensuring atomicity and consistency. |
+
+Also find below a detailed description of each use case, per database:
+
+| **Database**             | **Use Case**                                              | **Details**                                                                                                                                               |
+|--------------------------|-----------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Relational Databases** | **Load Sample Data**                                     | Load a significant sample size of data into the `authors`, `books`, and `publishers` tables.                                                              |
+|                          | **Retrieve Details of a Specific Author by ID**         | Query the `authors` table by `author_id` to retrieve details.                                                                                             |
+|                          | **Update the Address of an Existing Author**       | Update the `address` field in the `authors` table for the specified `author_id`.                                                                          |
+|                          | **Delete a Specific Publisher**                         | Delete a row from the `publishers` table where `publisher_id` matches the specified ID.                                                                   |
+|                          | **Add a New Book with Associated Author and Publisher Information** | Insert a new row into the `books` table, linking it with existing `author_id` and `publisher_id` values.                                                  |
+|                          | **Retrieve All Books Written by a Specific Author**     | Perform a join query between `books` and `authors` tables to list all books for the specified author.                                                     |
+|                          | **Update the Title and Genre of a Book**                | Update the `title` and `genre` fields in the `books` table for the specified `book_id`, ensuring related entities (like author) are updated.              |
+|                          | **Delete an Author and Handle Associated Books**         | Delete a row from the `authors` table and ensure that all related books in the `books` table are handled.                                                 |
+| **MongoDB**             | **Load Sample Data**                                     | Insert a significant amount of documents into the `authors`, `books`, and `publishers` collections.                                                       |
+|                          | **Retrieve Details of a Specific Author by ID**         | Query the `authors` collection by `author_id` to retrieve the document.                                                                                   |
+|                          | **Update the Email Address of an Existing Author**      | Update the `email` field in the document for the specified `author_id`.                                                                                   |
+|                          | **Delete a Specific Publisher**                         | Delete a document from the `publishers` collection where `publisher_id` matches the specified ID.                                                         |
+|                          | **Add a New Book with Embedded Author and Publisher Information** | Insert a new document into the `books` collection with embedded fields for author and publisher details.                                                  |
+|                          | **Retrieve All Books by a Specific Author**             | Query the `books` collection by author’s ID or name, assuming author details are embedded or referenced.                                                  |
+|                          | **Update the Title and Genre of a Book**                | Update the `title` and `genre` fields in the document of the `books` collection.                                                                          |
+|                          | **Delete an Author and Handle Related Books**           | Delete a document from the `authors` collection and handle related book documents, potentially using application logic to update or delete related books. |
+| **Cassandra**           | **Load Sample Data**                                     | Insert a significant amount of rows into the `authors`, `books`, and `publishers` tables, optimized for high-throughput.                                  |
+|                          | **Retrieve Details of a Specific Author by ID**         | Query the `authors` table by `author_id` using Cassandra’s optimized read queries.                                                                        |
+|                          | **Update the Email Address of an Existing Author**      | Update the `email` field in the `authors` table for the specified `author_id`, considering Cassandra’s eventual consistency.                              |
+|                          | **Delete a Specific Publisher**                         | Delete a row from the `publishers` table where `publisher_id` matches the specified ID.                                                                   |
+|                          | **Add a New Book with Associated Author and Publisher Information** | Insert a new row into the `books` table, linking it with existing `author_id` and `publisher_id` values.                                                  |
+|                          | **Retrieve All Books Published in the Last Year**       | Query the `books` table for books published in the last year, grouped by category, optimized for high read throughput.                                    |
+|                          | **Update the Title and Genre of a Book**                | Update the `title` and `genre` fields in the `books` table for the specified `book_id`, considering Cassandra’s data model.                               |
+|                          | **Delete an Author and Handle Associated Books**         | Delete a row from the `authors` table and ensure that all related books in the `books` table are handled.                                                 |
+| **Redis**               | **Load Sample Data**                                     | Use Redis data structures to store a significant amount of data for authors, books, and publishers.                                                       |
+|                          | **Retrieve Details of a Specific Author by ID**         | Query Redis for author details using hashes or other data structures.                                                                                     |
+|                          | **Update the Email Address of an Existing Author**      | Update the `email` field for an author in Redis, using hashes or similar data structures.                                                                 |
+|                          | **Delete a Specific Publisher**                         | Remove data for a publisher from Redis.                                                                                                                   |
+|                          | **Add a New Book with Associated Author and Publisher Information** | Store a new book in Redis, linking it with existing author and publisher data.                                                                            |
+|                          | **Retrieve All Books by a Specific Author**             | Query Redis for books associated with a specific author.                                                                                                  |
+|                          | **Update the Title and Genre of a Book**                | Update the `title` and `genre` fields in Redis for a specific book.                                                                                       |
+|                          | **Delete an Author and Handle Associated Books**         | Remove an author and manage related books from Redis.                                                                                                     |
+
+# Coding the infrastructure 
+## Domain layer - Enterprise business rules
+We will start by creating our entities: Authors, Books, and Publishers. I am not particularly worried about the atomicity 
+of the object itself, in fact I'll be creating them using Lombok, which sucks for atomicity. Nevertheless let us assume
+all object fields are atomic and required and if we need to change any non-PK field, we can simply edit the object.
+
+Under the root package, create a domain package and slap the following classes in there:
+```java
+package tutorials.databases.domain;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Author {
+    private String id;
+    private String name;
+    private String address;
+}
+```
+```java
+package tutorials.databases.domain;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Publisher {
+    private String id;
+    private String name;
+    private String address;
+}
+```
+```java
+package tutorials.databases.domain;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Book {
+    private String id;
+    private String title;
+    private String genre;
+    private String authorId;
+    private String publisherId;
+} 
+```
+As mentioned before, these classes are using lombok to generate getters, setters, constructors, and other boilerplate code.
+Which means I can't use the final keyword to make the fields atomic, but because we will be inserting the data, and we have
+no one breaking our code, we can assume the safety and integrity of the data. As long we are aware of this, we can move on.
+
+# Application layer - Application business rules layer
+In this layer, we will develop services that interact with repositories. Since we have three entities, we will need to 
+create three corresponding services.
+
+At this point, we don’t have any repositories set up yet, but our plan is to have one repository for each entity in the 
+database. The services, however, should be designed independently of the specific repository implementations. To achieve 
+this, we can use the Interface Segregation Principle to define service interfaces that will later be implemented by the 
+repositories. This approach allows us to create and work with the services without needing to worry about the details of 
+the repositories just yet.
+
+For now, let’s create three service interfaces: AuthorRepository, PublisherRepository, and BookRepository. These interfaces 
+will serve as the highest level of abstraction and will be implemented by the specific repository classes later on. We’ll 
+revisit the implementation details of these repositories in a subsequent phase. For now, we can focus on developing the 
+services and injecting these interfaces where needed:
+```java
+package tutorials.databases.service.repositories;
+
+public interface AuthorRepository {
+}
+```
+```java
+package tutorials.databases.service.repositories;
+
+public interface PublisherRepository{
+}
+```
+```java
+package tutorials.databases.service.repositories;
+
+public interface BookRepository{
+}
+```
+
+We will leave it like this for now. Now on for the services:
+
+```java
+package tutorials.databases.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tutorials.databases.domain.Author;
+import tutorials.databases.repositories.AuthorRepository;
+import tutorials.databases.repositories.BookRepository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class AuthorService {
+
+   private final AuthorRepository authorRepository;
+   private final BookRepository bookRepository;
+
+   public AuthorService(AuthorRepository authorRepository, BookRepository bookRepository) {
+      this.authorRepository = authorRepository;
+      this.bookRepository = bookRepository;
+   }
+
+   public Author addAuthor(String name, String address) {
+      Author author = Author.builder()
+              .id(UUID.randomUUID().toString())
+              .name(name)
+              .address(address)
+              .build();
+      return authorRepository.save(author);
+   }
+
+   public Optional<Author> findById(String authorId) {
+      return authorRepository.findById(authorId);
+   }
+
+   @Transactional
+   public void deleteAuthor(String id) {
+      bookRepository.deleteAllByAuthorId(id);
+      authorRepository.deleteById(id);
+   }
+}
+
+```
+
+```java
+package tutorials.databases.service;
+
+import org.springframework.stereotype.Service;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.repositories.PublisherRepository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class PublisherService {
+   private final PublisherRepository publisherRepository;
+
+   public PublisherService(PublisherRepository publisherRepository) {
+      this.publisherRepository = publisherRepository;
+   }
+
+   public Publisher addPublisher(String name, String address) {
+      Publisher publisher = Publisher.builder()
+              .id(UUID.randomUUID().toString())
+              .name(name)
+              .address(address)
+              .build();
+      return publisherRepository.save(publisher);
+   }
+
+   public Optional<Publisher> findById(String id) {
+      return publisherRepository.findById(id);
+   }
+
+   public void deletePublisher(String id) {
+      publisherRepository.deleteById(id);
+   }
+}
+
+```
+
+```java
+package tutorials.databases.service;
+
+import org.springframework.stereotype.Service;
+import tutorials.databases.domain.Book;
+import tutorials.databases.repositories.BookRepository;
+
+import java.util.Collection;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class BookService {
+   private final BookRepository bookRepository;
+
+   public BookService(BookRepository bookRepository) {
+      this.bookRepository = bookRepository;
+   }
+
+   public Book addBook(String title, String authorId) {
+      Book book = Book.builder()
+              .id(UUID.randomUUID().toString())
+              .title(title)
+              .authorId(authorId)
+              .build();
+      return bookRepository.save(book);
+   }
+
+   public Optional<Book> findById(String id) {
+      return bookRepository.findById(id);
+   }
+
+   public void deleteById(String id) {
+      bookRepository.deleteById(id);
+   }
+
+   public Collection<Book> findBooksByAuthorId(String authorId) {
+      return bookRepository.findBooksByAuthorId(authorId);  // Assuming custom query method in BookRepository
+   }
 
 
+   public boolean deleteByAuthorId(String authorId) {
+      return bookRepository.deleteAllByAuthorId(authorId);  // Assuming custom query method in BookRepository
+   }
+}
+```
+
+Certainly! Here’s a revised version of your text, with improved clarity and flow:
+
+Important Note: The names of the methods are not arbitrary; their conventions follow specific guidelines, which I will 
+explain in the next section. You'll also see types like Optional<Book> and Collection<Book>. While we could use Book 
+directly, leveraging Optional and Collection aligns with the JPA specification and Spring Data's conventions, which we 
+will follow to make use of their provided functionality.
+
+Two methods in the BookService are more complex and go beyond basic CRUD operations. We'll delve into these methods in 
+detail later, as our aim is to be as "lazy" as possible by leveraging the capabilities provided by JPA and Spring Data 
+to their fullest.
+
+With our services defined and the method signatures determined, we’re ready to start building the repository interfaces 
+and their concrete implementations, based on these established requirements.
+
+# Infrastructure layer - Interface adapters
+Let's start by creating three controller classes: AuthorController, PublisherController, and BookController. We will use
+RESTful endpoints to interact with the services we created earlier: 
+```java
+package tutorials.databases.controller;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import tutorials.databases.domain.Author;
+import tutorials.databases.service.AuthorService;
+
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/authors") 
+public class AuthorController {
+   private final AuthorService authorService;
+
+   public AuthorController(AuthorService authorService) {
+      this.authorService = authorService;
+   }
+
+   @PostMapping
+   public ResponseEntity<Author> addAuthor(@RequestParam String name, @RequestParam String address) {
+      Author author = authorService.addAuthor(name, address);
+      return new ResponseEntity<>(author, HttpStatus.CREATED);
+   }
+
+   @GetMapping("/{authorId}")
+   public ResponseEntity<Author> getAuthor(@PathVariable String authorId) {
+      Optional<Author> author = authorService.findById(authorId);
+      return author.map(ResponseEntity::ok)
+              .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+   }
+
+   @DeleteMapping("/{authorId}")
+   public ResponseEntity<Void> deleteByAuthorId(@PathVariable String authorId) {
+      authorService.deleteAuthor(authorId);
+      return ResponseEntity.noContent().build();
+   }
+}
+```
+```java
+package tutorials.databases.controller;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.service.PublisherService;
+
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/publishers")
+public class PublisherController {
+   private final PublisherService publisherService;
+
+   public PublisherController(PublisherService publisherService) {
+      this.publisherService = publisherService;
+   }
+
+   @PostMapping
+   public ResponseEntity<Publisher> addPublisher(@RequestParam String name, @RequestParam String address) {
+      Publisher publisher = publisherService.addPublisher(name, address);
+      return new ResponseEntity<>(publisher, HttpStatus.CREATED);
+   }
+
+   @GetMapping("/{id}")
+   public ResponseEntity<Publisher> getPublisher(@PathVariable String id) {
+      Optional<Publisher> publisher = publisherService.findById(id);
+      return publisher.map(ResponseEntity::ok)
+              .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+   }
+
+   @DeleteMapping("/{id}")
+   public ResponseEntity<Void> deletePublisher(@PathVariable String id) {
+      try {
+         publisherService.deletePublisher(id);
+         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+      } catch (Exception e) {
+         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+      }
+   }
+}
+```
+```java
+package tutorials.databases.controller;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import tutorials.databases.domain.Book;
+import tutorials.databases.service.BookService;
+
+import java.util.Collection;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/books")
+public class BookController {
+   private final BookService bookService;
+
+   public BookController(BookService bookService) {
+      this.bookService = bookService;
+   }
+
+   @PostMapping
+   public ResponseEntity<Book> addBook(@RequestParam String title, @RequestParam String authorId) {
+      Book book = bookService.addBook(title, authorId);
+      return new ResponseEntity<>(book, HttpStatus.CREATED);
+   }
+
+   @GetMapping("/{id}")
+   public ResponseEntity<Book> getBook(@PathVariable String id) {
+      Optional<Book> book = bookService.findById(id);
+      return book.map(ResponseEntity::ok)
+              .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+   }
+
+   @GetMapping("/author/{authorId}")
+   public ResponseEntity<Collection<Book>> getBooksByAuthor(@PathVariable String authorId) {
+      Collection<Book> books = bookService.findBooksByAuthorId(authorId);
+      return ResponseEntity.ok(books);
+   }
+
+   @DeleteMapping("/{id}")
+   public ResponseEntity<Void> deleteBook(@PathVariable String id) {
+      Optional<Book> book = bookService.findById(id);
+      if (book.isPresent()) {
+         bookService.deleteById(id);
+         return ResponseEntity.noContent().build();
+      } else {
+         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+      }
+   }
+
+   @DeleteMapping("/author/{authorId}")
+   public ResponseEntity<Void> deleteBooksByAuthor(@PathVariable String authorId) {
+      boolean deleted = bookService.deleteByAuthorId(authorId);
+      if (deleted) {
+         return ResponseEntity.noContent().build();
+      } else {
+         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+      }
+   }
+}
+```
+Important note: I am not worried about how well done the controllers are, as they are just a way to interact with the
+services. The controllers are not the focus of this tutorial, so I am not going to spend too much time on them. We could
+implement all sorts of input validation, error handling, and other features, but for now, we will keep them simple.
+
+Now we can finally start thinking of the repositories. We will start by tackling the relational databases, as they are the
+most common and the easiest to work with. 
+
+## Creating a generic RDBMS repository using Spring Data JPA
+Just as a refresher, extending JPA repositories offers some methods that will be created for us. Just for information, 
+JPARepository is an interface that is the result of a chain of interfaces that starts with the Repository interface, and 
+going through ListCrudRepository, ListPagingAndSortingRepository and ListJpaRepository. Each interface adds more 
+methods to the previous one. 
+
+JpaRepository is the one that adds the most functionality, so we will use that one. It is relevant to know the names of 
+the methods the JPA repository offers, because they will not be declared in our custom entity repository interfaces (unless
+we override to add/change functionality).
+
+Let's then create our JPA repository interfaces for each entity:
+
+```java
+package tutorials.databases.service.repositories;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import tutorials.databases.domain.Author;
+import tutorials.databases.repositories.AuthorRepository;
+
+public interface JpaAuthorRepository extends JpaRepository<Author, String>, AuthorRepository {
+
+}
+```
+
+```java
+package tutorials.databases.service.repositories;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.repositories.PublisherRepository;
+
+public interface JpaPublisherRepository extends JpaRepository<Publisher, String>, PublisherRepository {
+}
+```
+
+```java
+package tutorials.databases.service.repositories;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import tutorials.databases.domain.Book;
+import tutorials.databases.repositories.BookRepository;
+
+public interface JpaBookRepository extends JpaRepository<Book, String>, BookRepository {
+}
+
+```
+It is normal to have three questions right now:
+1. Why are we extending the JPA repository and the custom repository interface? Remember that we had to create an abstract
+interface for the services to work with. This is because we want to keep the services independent of the specific repository
+implementations. By extending the JPA repository, we get all the CRUD methods for free, and by extending the custom repository
+interface, we ensure that the services can work with any repository implementation.
+
+2. Why are we using the String type for the ID? It is rather common to have an Id object. This is because normally Ids 
+have business/validation logic and whatnot, I am not too worried about it, and am lazy to create an Id object, so I'll just
+use a String as an Id (even though I could use a UUID, but nevermind).
+
+3. Where are the methods? The methods the JPA specifies are not declared in the custom repository interfaces. They can be
+   looked at by following the chain of implementations. So you don't have to go through the names of the methods, I will show
+   you some relevant ones:
+- T save (T entity) - Saves an entity and returns the saved entity.
+- T findById (ID id) - Retrieves an entity by its id.
+- void deleteById (ID id) - Deletes an entity by its id.
+- boolean existsById (ID id) - Checks if an entity with the given id exists.
+
+Remember those two more complex methods in the BookService? Since they go beyond simple CRUD operations, we need to add 
+them to the BookRepository.
+
+Spring Data JPA can infer queries from method signatures in your repository interface. By defining these methods with the 
+correct names and return types, Spring Data JPA will automatically generate the appropriate queries for you.
+
+To do this, open your BookRepository interface. Right-click anywhere in the file and select 'Show Context Actions'. As you 
+begin typing the return type of the method (e.g., Collection<Book> or Book), start with a letter like 'f' to see the suggestions 
+that Spring Data JPA offers. Using these suggestions will help ensure that your methods are defined correctly and that 
+Spring Data JPA generates the queries as intended. Make sure to add the following methods to the BookRepository interface:
+```java
+public interface JpaBookRepository extends JpaRepository<Book, String>, BookRepository{
+   Collection<Book> findBooksByAuthorId (String authorId);
+   boolean deleteAllByAuthorId(String authorId);
+}
+```
+We just finished creating our repository interfaces without having to worry about concrete implementations or the specific
+query methods. Spring Data JPA will take care of generating the queries based on the method signatures we defined, all at
+runtime. 
+
+Now, remember those abstract repository interfaces we created? We need to make sure
+these methods are available there as well. But keep in mind we don't want to expose the JPA methods on those interfaces:
+```java
+package tutorials.databases.service.repositories;
+
+import tutorials.databases.domain.Author;
+
+import java.util.Optional;
+
+public interface AuthorRepository {
+    Author save(Author author);
+    Optional<Author> findById(String id);
+    void deleteById(String id);
+}
+```
+```java
+package tutorials.databases.service.repositories;
+
+import tutorials.databases.domain.Publisher;
+
+import java.util.Optional;
+
+public interface PublisherRepository{
+    Publisher save(Publisher publisher);
+    Optional<Publisher> findById(String id);
+    void deleteById(String authorId);
+}
+```
+```java
+package tutorials.databases.service.repositories;
+
+import tutorials.databases.domain.Book;
+
+import java.util.Collection;
+import java.util.Optional;
+
+public interface BookRepository{
+    Book save(Book book);
+    Optional<Book> findById (String id);
+    void deleteById(String authorId);
+    Collection<Book> findBooksByAuthorId(String authorId);
+    boolean deleteAllByAuthorId(String authorId);
+}
+```
+
+Finally we need to anotate our domain classes with JPA annotations. This is because we are using JPA repositories, and
+JPA needs to know how to map the entities to the database. We will add the annotations to the domain classes:
+```java
+package tutorials.databases.domain;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Author {
+
+   @Id
+   private String id;
+
+   private String name;
+   private String address;
+}
+```
+```java
+package tutorials.databases.domain;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Publisher {
+
+   @Id
+   private String id;
+
+   private String name;
+   private String address;
+}
+```
+```java
+package tutorials.databases.domain;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Book {
+
+   @Id
+   private String id;
+
+   private String title;
+   private String genre;
+   private String authorId;
+   private String publisherId;
+}
+```
+
+Let's quickly test this on a postgres db, in application properties, add the following:
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/mydb
+spring.datasource.username=postgres
+spring.datasource.password=password
+spring.jpa.hibernate.ddl-auto=create-drop
+spring.jpa.show-sql=true
+```
+Let's docker-compose up to launch the postgreSQL db (you may stop the others). Then we can run the application and open
+Postman to test the endpoints:
+- POST localhost:8080/authors?name=John&address=123 Main St
+- GET localhost:8080/authors/{id}
+
+Let us now close the application, swap over to MySQL, and test the application again. In application properties, add the
+following:
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/mydb
+spring.datasource.username=root
+spring.datasource.password=password
+spring.jpa.hibernate.ddl-auto=create-drop
+spring.jpa.show-sql=true
+```
+Feel free to use the previous commands on postman to test the application with mySQL
+
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Revised Project Plan Outline
 Overview of Different Types of Databases:
@@ -516,3 +1260,7 @@ Spring Boot Actuator (optional)
 Generate the Project and download the zip file.
 
 Unzip and Import the project into your IDE (e.g., IntelliJ IDEA, Eclipse).
+
+
+
+TRANSACTIONS, OPTIMISTIC LOCKING, performance, ATOMICITY
