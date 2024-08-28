@@ -1064,7 +1064,7 @@ public interface BookRepository{
 }
 ```
 
-Finally we need to anotate our domain classes with JPA annotations. This is because we are using JPA repositories, and
+Finally we need to annotate our domain classes with JPA annotations. This is because we are using JPA repositories, and
 JPA needs to know how to map the entities to the database. We will add the annotations to the domain classes:
 ```java
 package tutorials.databases.domain;
@@ -1240,69 +1240,415 @@ spring.data.mongodb.uri=mongodb://localhost:27017/mydb
 ```
 
 ## Dealing with multiple databases - DEVOPS
-If we simply change the application properties to switch between databases and run the application, an error will occur. 
-This happens because when Spring Boot starts, it automatically scans the application for components, including repository 
-beans. If it encounters multiple implementations of the same repository interface—like JpaAuthorRepository and 
-MongoAuthorRepository—it can become confused about which one to instantiate and inject into your services.
+When reaching this part one could easily despair as it turns out springboot does quite a lot in the background, often
+overwriting configurations and whatnot. But fear not, we can still use multiple databases. I will try to vaguely explain
+what issues can arise here, and how I managed to solve them, which is probably not the most elegant way, but what is life
+without a bit of danger?
 
-Spring Boot is designed to auto-configure beans based on the components it finds during the classpath scan. However, when 
-multiple beans fulfill the same role—such as repositories that implement the same interface but are designed for different 
-databases (JPA vs. MongoDB)—Spring Boot doesn't know which one to prioritize. This can lead to conflicts, where Spring Boot 
-either fails to start or throws an error because it's attempting to register multiple beans with the same name or purpose.
-On this case it might seem confusing, because why is springboot confused when I clearly have an interface for JPARepository
-and another for MongoRepository? The problem is that Spring Boot is not confused about the interfaces, but about the
-implementations. It is not sure which implementation to use when trying to inject the repository into the service (remember
-our broad service interface that is implemented by the JPARepository and the MongoRepository).
+You probably reading this gradually, but this step actually brought the whole project to a halt for quite some time, and
+highlights my personal inexperience with springboot. Nonetheless, diving hard into springboot is definetly a future requirement
+but I find it out of scope for this project.
 
-To avoid these conflicts and ensure that Spring Boot loads the correct repository beans, we need to guide the framework 
-on which implementation to use. This can be achieved through two primary methods: Profile-Based Configuration and Conditional 
-Bean Creation. These methods allow you to specify exactly which repository beans should be loaded depending on the active 
-profile or specific properties set in your application configuration. By doing so, you can ensure that your application 
-remains flexible and scalable while avoiding conflicts during the startup process.
-
-I will showcase both as I find them really interesting, although I find that the conditional bean creation is more elegant
-and easier to understand.
-
-### Profile-Based Configuration
-Profile-based configuration allows you to define different sets of beans based on the active profile. By specifying the
-profile in your application properties or configuration file, you can control which beans are loaded at runtime. For example
-if we annotate the JPA repository with @Profile("jpa") and the Mongo repository with @Profile("mongo"), we can then
-add a line to the application properties to specify which profile to use:
+Anyway let me try and explain a couple of things I found out after a lot of trial and error:
+1. Springboot autoconfigures beans based on a lot of factors, as we know. What I didn't know is that the simple presence
+of a dependency in the pom.xml file can trigger springboot to autoconfigure a bean. Which is quite upsetting as without
+proper ways of logging which beans are being created, it is hard to know what is going on. So first thing is to make sure
+you are aware of what beans are being created. To do this we can include in application.properties:
 ```properties
-spring.profiles.active=jpa
+logging.level.org.springframework.beans.factory.support=DEBUG
 ```
-This will tell Spring Boot to load the beans annotated with @Profile("jpa") and ignore the ones annotated with @Profile("mongo").
-This is a simple and effective way to manage different configurations for different environments or databases. However, it
-can become cumbersome when dealing with multiple profiles or complex configurations. In such cases, conditional bean creation
-may offer a more flexible and concise solution.
-
-### Conditional Bean Creation
-Instead of relying on profiles, conditional bean creation allows you to specify conditions for bean creation based on
-properties or other factors. This approach provides more granular control over which beans are loaded and can be more
-flexible than profile-based configuration. By using annotations like @ConditionalOnProperty, you can define conditions
-that determine whether a bean should be created or not. This is particularly useful when you need to switch between different
-implementations based on specific properties or configurations. Let's annotate the three JPA repositories with:
+This is soooo crucial, as it tells you exactly what is being produced and what is being excluded.
+2. To stop springboot from dynamically autoconfiguring datasources and the actual repositories so we need to add:
+```properties
+spring.autoconfigure.exclude=\
+org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,\
+org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration,\
+org.springframework.boot.autoconfigure.data.mongo.MongoReactiveRepositoriesAutoConfiguration,\
+org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration,\
+org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration,\
+org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+```
+3. You will notice there are multiple entries for mongo. With JPA we can suppress the autoconfiguration of the repositories
+with just 1 command, but with mongoDB we need to add multiple entries. This is because springboot has multiple configurations
+for mongoDB, and we need to exclude all of them. This is a bit of a pain, but it is what it is. 
+4. Still regarding mondoDB, because we are excluding more than 1 bean, we have to make sure that it is reactivated when we
+want. Obviously one being unknown to this sorcery would think that just enabling @MongoRepository would be enough, but no.
+5. Creating specific configuration files and utilizing configuration annotation. Feel free to just copy the classes and put them 
+at the main repositories package:
 ```java
-@Repository
-@ConditionalOnProperty(name = "app.database.type", havingValue = "jpa")
-public interface JpaAuthorRepository extends AuthorRepository, JpaRepository<Author, String> {
+package tutorials.databases.repositories;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import tutorials.databases.repositories.jpa.JpaAuthorRepository;
+import tutorials.databases.repositories.jpa.JpaBookRepository;
+import tutorials.databases.repositories.jpa.JpaPublisherRepository;
+
+@Configuration
+@ConditionalOnProperty(value = "database.type", havingValue = "jpa")
+@EnableJpaRepositories(basePackages = "tutorials.databases.repositories.jpa")
+public class JpaRepositoryConfiguration {
+
+   @Bean
+   public AuthorRepository jpaAuthorRepository(JpaAuthorRepository jpaAuthorRepository) {
+      return jpaAuthorRepository;
+   }
+
+   @Bean
+   public BookRepository jpaBookRepository(JpaBookRepository jpaBookRepository) {
+      return jpaBookRepository;
+   }
+
+   @Bean
+   public PublisherRepository jpaPublisherRepository(JpaPublisherRepository jpaPublisherRepository) {
+      return jpaPublisherRepository;
+   }
 }
 ```
-We can do the same for our mongo repositories:
 ```java
-@Repository
-@ConditionalOnProperty(name = "app.database.type", havingValue = "mongo")
-public interface MongoAuthorRepository extends AuthorRepository, MongoRepository<Author, String> {
+package tutorials.databases.repositories;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.mongodb.config.AbstractMongoClientConfiguration;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
+import tutorials.databases.repositories.mongo.MongoAuthorRepository;
+import tutorials.databases.repositories.mongo.MongoBookRepository;
+import tutorials.databases.repositories.mongo.MongoPublisherRepository;
+
+@Configuration
+@ConditionalOnProperty(value = "database.type", havingValue = "mongo")
+@EnableMongoRepositories(basePackages = "tutorials.databases.repositories.mongo")
+public class MongoRepositoryConfiguration extends AbstractMongoClientConfiguration {
+
+    @Override
+    protected String getDatabaseName() {
+        return "mydb"; // Replace with your actual database name
+    }
+
+    @Bean
+    @Override
+    public MongoClient mongoClient() {
+        return MongoClients.create("mongodb://localhost:27017"); // Replace with your MongoDB URI
+    }
+
+    @Bean
+    public MongoTemplate mongoTemplate() {
+        return new MongoTemplate(mongoClient(), getDatabaseName());
+    }
+
+    @Bean
+    public AuthorRepository mongoAuthorRepository(MongoAuthorRepository mongoAuthorRepository) {
+        return mongoAuthorRepository;
+    }
+
+    @Bean
+    public BookRepository mongoBookRepository(MongoBookRepository mongoBookRepository) {
+        return mongoBookRepository;
+    }
+
+    @Bean
+    public PublisherRepository mongoPublisherRepository(MongoPublisherRepository mongoPublisherRepository) {
+        return mongoPublisherRepository;
+    }
 }
 ```
-And finally in our application properties, we can specify which database to use:
+We will then place this in application.properties (mongo is an example, it can be jpa):
 ```properties
-app.database.type=mongo
+database.type=mongo
 ```
-The @ConditionalOnProperty annotation will scan the application properties for the property "app.database.type" and check
-if its value is "jpa" or "mongo". Based on this value, the corresponding repository bean will be created. EZPZ
+What these two classes do is basically use the @Configuration annotation to signal that these classes are configuration classes.
+The @ConditionalOnProperty annotation is telling springboot that, if the property database.type is mongo for example, it
+will tell springboot to load all the beans contained in the defined package. This way, when springboot loads, it checks
+the variable then only creates beans related to the database we choose. This is a very important step, as it allows us to
+use multiple databases without springboot going crazy.
 
+Inside these classes we define the beans that we want to create (or reactivate), and we can use the @Bean annotation to 
+create them. But now we must know what to signal as beans. And as we can see by the mongoDB one, sometimes they can get
+quite complex. But this is what LLMs are for.
 
+6. One last comment. I had some trouble with the database.type entry in application.properties. This is because springboot
+had some trouble reading the property. One way to solve this problem, is to manually add that property unto the additional
+springboot configuration metadata file. This is done by creating a file called spring-configuration-metadata-whatevername.properties
+and slaping that in there. If you use IntelliJ you can just Alt + click on the property and click on "define configuration
+key". This will create the Json file for you, and if not available, the whole META-INF package inside resources.
+
+7. Topics for later study: how springboot scans for beans, how to create custom beans, how to exclude beans, how to use
+conditional annotations, how to use configuration annotations, how to use springboot configuration metadata files.
+Qualifiers!!!!
+
+## Creating a Cassandra repository using Spring Data Cassandra
+Cassandra is a wide-column NoSQL database designed to handle large amounts of data with high performance. Originally 
+developed by Facebook, it is now maintained by the Apache Software Foundation. Each instance of Cassandra is a node in 
+a cluster, typically storing between 2-4 TB of data. Nodes can be easily distributed to scale horizontally, with each 
+node having equal read/write capabilities and being responsible for a subset of the data (known as a partition).
+
+Nodes are organized into clusters, and data can be programmatically replicated across multiple nodes to ensure fault 
+tolerance. This architecture eliminates any single point of failure, ensuring that data is always available.
+
+In Cassandra, keyspaces are the highest level of data organization, similar to databases in traditional RDBMS. Within 
+each keyspace, data is organized into tables called column families. Unlike traditional databases, these tables are 
+schema-less, allowing each row to have a different number of columns and to store unstructured data.
+
+Interaction with Cassandra is facilitated through the Cassandra Query Language (CQL), which is similar to SQL but with 
+some differences. CQL is used to create keyspaces, tables, and perform CRUD operations. However, Cassandra does not 
+support joins, subqueries, or transactions. Instead, data is often denormalized and stored in a way that aligns with 
+specific use cases to optimize retrieval speed.
+
+To write data to Cassandra, you need to create a session object that connects to the Cassandra cluster. This session
+object is used to execute CQL queries and interact with the database. You can also use the DataStax Java driver to
+simplify the process of connecting to Cassandra and executing queries. The driver provides a higher-level API for
+interacting with Cassandra, handling connection pooling, load balancing, and other low-level details.
+
+To interact with Cassandra in a Spring Boot application, we can use Spring Data Cassandra, which provides a higher-level
+abstraction for working with Cassandra databases. Spring Data Cassandra simplifies the process of connecting to Cassandra,
+executing queries, and mapping the results to Java objects. It also provides support for creating repositories that
+perform CRUD operations on Cassandra entities. Include the following dependencies in your project:
+```xml
+     <dependency>
+         <groupId>org.springframework.boot</groupId>
+         <artifactId>spring-boot-starter-data-cassandra</artifactId>
+     </dependency>
+```
+In application.properties let's change the db type to cassandra, and place the following properties:
+```properties
+org.springframework.boot.autoconfigure.data.cassandra.CassandraDataAutoConfiguration,\
+org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfiguration
+
+database.type=cassandra
+
+spring.cassandra.keyspace-name=keyspace1
+spring.cassandra.contact-points=localhost:9042
+spring.cassandra.port=9042
+spring.cassandra.local-datacenter=datacenter1
+spring.cassandra.schema-action=recreate
+```
+Firstly the top 2 commands will stop springboot from autoconfiguring the cassandra beans, add them to the end of the previous
+ones. The properties are pretty straightforward, but I will explain them anyway. The keyspace name is the name of the 
+keyspace you want to use. The contact points are the addresses of the nodes in the cluster. The port is the port number 
+of the nodes. The local datacenter is the name of the datacenter where the application is running. The schema action is 
+the action to take when the application starts.
+
+These are suggested properties. Recreate is like create-drop in JPA, it will drop the keyspace and recreate it every time.
+
+Let's create a new repository for each of our entities, similar to what we did for MongoDB and JPA, but now we will
+use Spring Data Cassandra:
+```java
+package tutorials.databases.repositories.cassandra;
+
+import org.springframework.data.cassandra.repository.CassandraRepository;
+import tutorials.databases.domain.Author;
+import tutorials.databases.repositories.AuthorRepository;
+
+public interface CassandraAuthorRepository extends CassandraRepository<Author, String>, AuthorRepository {
+}
+```
+```java
+package tutorials.databases.repositories.cassandra;
+
+import org.springframework.data.cassandra.repository.CassandraRepository;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.repositories.PublisherRepository;
+
+public interface CassandraPublisherRepository extends CassandraRepository<Publisher, String>, PublisherRepository {
+}
+```
+```java
+package tutorials.databases.repositories.cassandra;
+
+import org.springframework.data.cassandra.repository.CassandraRepository;
+import tutorials.databases.domain.Book;
+import tutorials.databases.repositories.BookRepository;
+
+import java.util.Collection;
+
+public interface CassandraBookRepository extends CassandraRepository<Book, String>, BookRepository {
+   Collection<Book> findBooksByAuthorId (String authorId);
+   boolean deleteAllByAuthorId(String authorId);
+}
+```
+Again, spring data cassandra will generate the queries for us, so we don't have to worry about that.
+
+Finally we need to sort out our configuration files. We will create a new configuration file for Cassandra, similar to
+what we did for MongoDB:
+```java
+package tutorials.databases.repositories.configuration;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.cassandra.config.AbstractCassandraConfiguration;
+import org.springframework.data.cassandra.repository.config.EnableCassandraRepositories;
+import tutorials.databases.repositories.AuthorRepository;
+import tutorials.databases.repositories.BookRepository;
+import tutorials.databases.repositories.PublisherRepository;
+import tutorials.databases.repositories.cassandra.CassandraAuthorRepository;
+import tutorials.databases.repositories.cassandra.CassandraBookRepository;
+import tutorials.databases.repositories.cassandra.CassandraPublisherRepository;
+
+@Configuration
+@ConditionalOnProperty(value = "database.type", havingValue = "cassandra")
+@EnableCassandraRepositories(basePackages = "tutorials.databases.repositories.cassandra")
+public class CassandraRepositoryConfiguration extends AbstractCassandraConfiguration {
+
+    @Override
+    protected String getKeyspaceName() {
+        return "keyspace1"; // Replace with your actual keyspace name
+    }
+
+    @Bean
+    public AuthorRepository cassandraAuthorRepository(CassandraAuthorRepository cassandraAuthorRepository) {
+        return cassandraAuthorRepository;
+    }
+
+    @Bean
+    public BookRepository cassandraBookRepository(CassandraBookRepository cassandraBookRepository) {
+        return cassandraBookRepository;
+    }
+
+    @Bean
+    public PublisherRepository cassandraPublisherRepository(CassandraPublisherRepository cassandraPublisherRepository) {
+        return cassandraPublisherRepository;
+    }
+}
+```
+Next, like with JPA we need to annotate the domain classes with the appropriate annotations. I have kept the annotations
+for JPA but added the Cassandra ones as well:
+```java
+package tutorials.databases.domain;
+
+import jakarta.persistence.Entity; // JPA
+import jakarta.persistence.Id; // JPA
+import org.springframework.data.cassandra.core.mapping.Column; // Cassandra
+import org.springframework.data.cassandra.core.mapping.PrimaryKey; // Cassandra
+import org.springframework.data.cassandra.core.mapping.Table; // Cassandra
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity // JPA
+@Table("author") // Cassandra
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Author {
+
+    @Id // JPA
+    @PrimaryKey // Cassandra
+    private String id;
+
+    @Column("name") // Cassandra
+    private String name;
+
+    @Column("address") // Cassandra
+    private String address;
+}
+```
+```java
+package tutorials.databases.domain;
+
+import jakarta.persistence.Entity; // JPA
+import jakarta.persistence.Id; // JPA
+import org.springframework.data.cassandra.core.mapping.Column; // Cassandra
+import org.springframework.data.cassandra.core.mapping.PrimaryKey; // Cassandra
+import org.springframework.data.cassandra.core.mapping.Table; // Cassandra
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity // JPA
+@Table("book") // Cassandra
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Book {
+
+    @Id // JPA
+    @PrimaryKey // Cassandra
+    private String id;
+
+    @Column("title") // Cassandra
+    private String title;
+
+    @Column("genre") // Cassandra
+    private String genre;
+
+    @Column("author_id") // Cassandra
+    private String authorId;
+
+    @Column("publisher_id") // Cassandra
+    private String publisherId;
+}
+```
+```java
+package tutorials.databases.domain;
+
+import jakarta.persistence.Entity; // JPA
+import jakarta.persistence.Id; // JPA
+import org.springframework.data.cassandra.core.mapping.Column; // Cassandra
+import org.springframework.data.cassandra.core.mapping.PrimaryKey; // Cassandra
+import org.springframework.data.cassandra.core.mapping.Table; // Cassandra
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity // JPA
+@Table("publisher") // Cassandra
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Publisher {
+
+    @Id // JPA
+    @PrimaryKey // Cassandra
+    private String id;
+
+    @Column("name") // Cassandra
+    private String name;
+
+    @Column("address") // Cassandra
+    private String address;
+}
+```
+Next in the order of business is something I will research if I ever have to use Cassandra in production. I am not sure, 
+but I am being led to believe we have to preconfigure the keyspace and tables in Cassandra. To avoid faffing around with 
+this, I will just create the keyspace and tables manually. I am sure there will be more dynamic way to do this, like 
+triggering a script on app start or on database docker setup, but I really do not want to waste much more time on this.
+
+To create those we will open docker desktop and enter the Cassandra shell. We do this by clicking our running Cassandra
+container and clicking on the EXEC tab. We then enter the following command:
+```bash
+cqlsh
+```
+This will open the Cassandra shell. We then enter the following commands:
+```cql
+CREATE KEYSPACE keyspace1 WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1};
+USE keyspace1;
+CREATE TABLE author (id text PRIMARY KEY, name text, address text);
+CREATE TABLE book (id text PRIMARY KEY, title text, genre text, author_id text, publisher_id text);
+CREATE TABLE publisher (id text PRIMARY KEY, name text, address text);
+```
+You can check they have been done by using the describe command:
+```cql
+DESCRIBE keyspaces;
+DESCRIBE TABLES;
+```
+        
+With this done we can go over to postman and test the application. We can use the same commands as before:
+- POST localhost:8080/authors?name=John&address=123 Main St
+- GET localhost:8080/authors/{id}
 
 
 

@@ -1,5 +1,6 @@
 package tutorials.databases.repositories;
 
+import org.springframework.stereotype.Repository;
 import tutorials.databases.domain.Publisher;
 
 import java.util.Optional;
