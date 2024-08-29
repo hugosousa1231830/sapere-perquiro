@@ -1650,6 +1650,110 @@ With this done we can go over to postman and test the application. We can use th
 - POST localhost:8080/authors?name=John&address=123 Main St
 - GET localhost:8080/authors/{id}
 
+## Notes on the ordeal of creating a dynamic environment vs the autoconfigured beans
+It appears that the fact we have placed the annotations on the domain classes is enough for springboot to ask for 
+Cassandra beans when loading the application, even if they are not meant to be used anywhere. This obviously brings a lot 
+of confusion when trying to use another database. The only way we can swap back to another one, without springboot shouting 
+for the lack of cassandra beans is by removing the annotations from the domain classes. I have spent far too much time on 
+this, and have reached my current level of frustration with trying to get this to work. To avoid sacrificing the 
+continuation of the whole project, I have decided to comment out all the Cassandra related stuff, including the annotations 
+on the domain classes and from POM. 
+
+In the meantime I have managed to dynamically change JPA and Mongo by adopting profiles and commenting/uncommenting the
+datasource properties in application.properties. This is the new application.properties:
+
+```properties
+spring.application.name=databases
+spring.main.allow-bean-definition-overriding=true
+logging.level.org.springframework.boot.autoconfigure=DEBUG
+# To change databases:
+# 1.
+# Change the following value to the desired one (jpa/mongo/cassandra/redis)
+spring.profiles.active=jpa
+
+# 2.
+# JPA - uncomment spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration otherwise it wont load entity manager
+# MongoDB - comment spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration otherwise it will expect a relational datasource...
+
+# spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+# 3.
+# Uncomment the desired database configuration
+#Postgres
+#spring.datasource.url=jdbc:postgresql://localhost:5432/mydb
+#spring.datasource.username=postgres
+#spring.datasource.password=password
+#spring.jpa.hibernate.ddl-auto=create-drop
+#spring.jpa.show-sql=true
+
+#MySQL
+#spring.datasource.url=jdbc:mysql://localhost:3306/mydb
+#spring.datasource.username=root
+#spring.datasource.password=password
+#spring.jpa.hibernate.ddl-auto=create-drop
+#spring.jpa.show-sql=true
+
+#MongoDB
+#spring.data.mongodb.uri=mongodb://localhost:27017/mydb
+```
+I've added @Profile("mongo") on all mongoDB repositories and @Profile("jpa") on all JPA repositories:
+```java
+package tutorials.databases.repositories.mongo;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.repositories.PublisherRepository;
+
+@Profile("mongo")
+public interface MongoPublisherRepository extends MongoRepository<Publisher, String>, PublisherRepository {
+}
+```
+```java
+package tutorials.databases.repositories.jpa;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.data.jpa.repository.JpaRepository;
+import tutorials.databases.domain.Author;
+import tutorials.databases.repositories.AuthorRepository;
+
+@Profile("jpa")
+public interface JpaAuthorRepository extends JpaRepository<Author, String>, AuthorRepository {
+}
+```
+Finally I swapped the @ConditionalOnProperty annotation for @Profile on the configuration classes:
+```java
+@Configuration
+@Profile("jpa")
+@EnableJpaRepositories(basePackages = "tutorials.databases.repositories.jpa")
+public class JpaRepositoryConfiguration {
+```
+```java
+@Configuration
+@Profile("mongo")
+@EnableMongoRepositories(basePackages = "tutorials.databases.repositories.mongo")
+public class MongoRepositoryConfiguration extends AbstractMongoClientConfiguration {
+```
+To resolve the issues with wild cassandra beans I commented everything related to Cassandra, from the config files, to 
+the repositories, pom and annotations from domain classes. If we ever want to turn on Cassandra again, we have to 
+uncomment everything, probably suppress the Cassandra beans again, and let the configuration file do its magic. Plus 
+set up the keyspace and tables manually, or find a better way to go about it.
+
+Curiously enough, all this made me wonder why MongoDB had no problem with annotations on the domain class, which made me realize
+I never used any, and it still worked, weird. Apparently we should have used @Document on the domain classes, but it still
+worked without it. Perhaps mongoDB was giving me a free pass, but Cassandra was not having it. We can't live without them though.
+
+After the devastating defeat with Cassandra, I decided to continue with the project but have made my decision on what to study 
+next - Springboot, and in proper depth m8.
+
+## Creating a Redis repository using Spring Data Redis
+Redis is an in-memory data store that can
+
+
+
+
+
 
 
 

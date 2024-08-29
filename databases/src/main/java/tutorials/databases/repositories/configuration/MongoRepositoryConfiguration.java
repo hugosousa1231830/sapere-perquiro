@@ -3,6 +3,7 @@ package tutorials.databases.repositories.configuration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.mongodb.config.AbstractMongoClientConfiguration;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import com.mongodb.client.MongoClient;
@@ -16,7 +17,7 @@ import tutorials.databases.repositories.mongo.MongoBookRepository;
 import tutorials.databases.repositories.mongo.MongoPublisherRepository;
 
 @Configuration
-@ConditionalOnProperty(value = "database.type", havingValue = "mongo")
+@Profile("mongo")
 @EnableMongoRepositories(basePackages = "tutorials.databases.repositories.mongo")
 public class MongoRepositoryConfiguration extends AbstractMongoClientConfiguration {
 
@@ -28,7 +29,7 @@ public class MongoRepositoryConfiguration extends AbstractMongoClientConfigurati
     @Bean
     @Override
     public MongoClient mongoClient() {
-        return MongoClients.create("mongodb://localhost:27017"); // Replace with your MongoDB URI
+        return MongoClients.create("mongodb://localhost:27017");
     }
 
     @Bean

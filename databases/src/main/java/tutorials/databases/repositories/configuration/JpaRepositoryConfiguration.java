@@ -3,6 +3,7 @@ package tutorials.databases.repositories.configuration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import tutorials.databases.repositories.AuthorRepository;
 import tutorials.databases.repositories.BookRepository;
@@ -12,7 +13,7 @@ import tutorials.databases.repositories.jpa.JpaBookRepository;
 import tutorials.databases.repositories.jpa.JpaPublisherRepository;
 
 @Configuration
-@ConditionalOnProperty(value = "database.type", havingValue = "jpa")
+@Profile("jpa")
 @EnableJpaRepositories(basePackages = "tutorials.databases.repositories.jpa")
 public class JpaRepositoryConfiguration {
 
