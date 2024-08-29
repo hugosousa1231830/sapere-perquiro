@@ -1748,9 +1748,153 @@ After the devastating defeat with Cassandra, I decided to continue with the proj
 next - Springboot, and in proper depth m8.
 
 ## Creating a Redis repository using Spring Data Redis
-Redis is an in-memory data store that can
+Redis (Remote Dictionary Server) is a high-performance, in-memory data structure store widely used as both a cache and a 
+database. Unlike traditional databases that primarily store data on disk, Redis keeps data in memory, which allows for 
+sub-millisecond response times and high throughput. While Redis is often used as a cache due to its ability to quickly 
+retrieve and store data, it also serves as a persistent data store, with the capability to periodically save data to disk. 
+This dual nature makes Redis a versatile tool in many high-performance application architectures.
 
+Data in Redis is stored as key-value pairs, and the system supports a variety of data structures, including strings, lists, 
+sets, sorted sets, hashes, bitmaps and geospatial indexes. For example, strings are often used to store 
+simple values like user session data, while hashes can store more complex objects like user profiles. Redis also supports 
+atomic operations on these data types, meaning operations like incrementing a value or adding an item to a list are 
+completed fully or not at all, ensuring data consistency.
 
+Persistence in Redis is achieved through two main mechanisms: RDB (Redis Database Backup) and AOF (Append-Only File). 
+RDB snapshots the dataset at specified intervals, while AOF logs every write operation, offering a more durable and 
+resilient option in case of a system crash. These mechanisms allow Redis to provide durability while still maintaining 
+its performance advantages.
+
+Redis's functionality can be further extended through modules, which are plugins that add specialized capabilities. 
+Popular modules include RedisJSON, which enables JSON document support, and RedisTimeSeries, which adds time series data 
+management features. These modules allow Redis to adapt to specific business needs, making it a flexible tool for a wide 
+range of applications.
+
+As with the previous, Redis has Spring Data support, so let's get it set up:
+```xml
+     <dependency>
+         <groupId>org.springframework.boot</groupId>
+         <artifactId>spring-boot-starter-data-redis</artifactId>
+     </dependency>
+```
+In application.properties let's change the db type to redis:
+```properties
+spring.profiles.active=redis
+spring.data.redis.host=redis-db
+spring.data.redis.port=6379
+```
+
+Regarding the set up of redis repositories it is to note that there isn't actually a specific repository we extend for Redis,
+like we had with JPA, MongoDB and Cassandra. To obtain the methods, we will simply extend the CRUD repository :
+```java
+package tutorials.databases.repositories.redis;
+
+import org.springframework.data.repository.CrudRepository;
+import tutorials.databases.domain.Author;
+import tutorials.databases.repositories.AuthorRepository;
+
+public interface RedisAuthorRepository extends CrudRepository<Author, String>, AuthorRepository {
+}
+```
+```java
+package tutorials.databases.repositories.redis;
+
+import org.springframework.data.repository.CrudRepository;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.repositories.PublisherRepository;
+
+public interface RedisPublisherRepository extends CrudRepository<Publisher, String>, PublisherRepository { 
+}
+```
+```java
+package tutorials.databases.repositories.redis;
+
+import org.springframework.data.repository.CrudRepository;
+import tutorials.databases.domain.Book;
+import tutorials.databases.repositories.BookRepository;
+
+public interface RedisBookRepository extends CrudRepository<Book, String>, BookRepository {
+    
+}
+```
+IMPORTANT NOTE: Redis is a key-value store, and its querying capabilities are not as sophisticated as those of a relational 
+database or even a document store like MongoDB. This means the two extra methods that we added on the book repositories,
+that were covered by spring data, will not work for Redis. Considering our goal was to have the same methods for all databases,
+while letting spring data deal with the programming aspect of it, we will have to remove these methods from the Redis repository
+and count this as an L for Redis. Of course, we could absolutely sort out these methods by pulling the data from the database
+and then filtering it in the application, but this is not the goal of this project.
+
+Moving on, Spring data is not completely useless with Redis, as it still provides a lot of functionality, and we can still
+use the CRUD repository to perform basic operations. 
+
+Finally, we need to sort out the configuration files. We will create a new configuration file for Redis, similar to what we did
+for MongoDB and Cassandra:
+```java
+package tutorials.databases.repositories.configuration;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import tutorials.databases.repositories.AuthorRepository;
+import tutorials.databases.repositories.BookRepository;
+import tutorials.databases.repositories.PublisherRepository;
+import tutorials.databases.repositories.redis.RedisAuthorRepository;
+import tutorials.databases.repositories.redis.RedisBookRepository;
+import tutorials.databases.repositories.redis.RedisPublisherRepository;
+
+@Configuration
+@Profile("redis")
+@EnableRedisRepositories(basePackages = "tutorials.databases.repositories.redis")
+public class RedisRepositoryConfiguration {
+
+//    @Bean
+//    public JedisConnectionFactory jedisConnectionFactory() {
+//        return new JedisConnectionFactory();
+//    }
+//
+//    @Bean
+//    public RedisTemplate<String, Object> redisTemplate() {
+//        RedisTemplate<String, Object> template = new RedisTemplate<>();
+//        template.setConnectionFactory(jedisConnectionFactory());
+//        return template;
+//    }
+
+   @Bean
+   public AuthorRepository redisAuthorRepository(RedisAuthorRepository redisAuthorRepository) {
+      return redisAuthorRepository;
+   }
+
+   @Bean
+   public BookRepository redisBookRepository(RedisBookRepository redisBookRepository) {
+      return redisBookRepository;
+   }
+
+   @Bean
+   public PublisherRepository redisPublisherRepository(RedisPublisherRepository redisPublisherRepository) {
+      return redisPublisherRepository;
+   }
+}
+```
+
+## Evolving our architecture - Domain models to specific data models
+Looking back at the issues we had with Cassandra, and the mess created by over-annotating our domain classes for different 
+databases, it’s clear we need a new approach. Trying to fit multiple database requirements into a single domain model has 
+been problematic, so it’s time to rethink our strategy.
+
+Creating separate data models for each database might seem like a lot of work, but it looks like the most practical solution 
+for now. I tried to find ways to conditionally apply annotations to avoid this duplication, but no good solutions came up. 
+So, it seems we’re stuck with the task of creating dedicated data models for each database and domain object.
+
+Next, we need to figure out how to map these data models to our domain objects. This means setting up mappers that handle 
+the conversion between the domain models and the database-specific models. We’ll need some way to decide which mapper to 
+use, probably by adding some conditional logic in our service layer. Spring’s @Profile annotation might help with this.
+
+So, here’s the plan: we’ll create a separate data model for each database and a corresponding mapper for each domain object. 
+We’ll adjust our service layer to use the correct mapper based on the database in use. If this works out, it might even make 
+it possible to give Cassandra another shot.
 
 
 
