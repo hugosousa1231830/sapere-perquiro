@@ -1,19 +1,26 @@
 package tutorials.databases.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tutorials.databases.datamodels.publisher.BookDataModel;
 import tutorials.databases.domain.Book;
+import tutorials.databases.mappers.GeneralMapper;
 import tutorials.databases.repositories.BookRepository;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class BookService {
-    private final BookRepository bookRepository;
 
-    public BookService(BookRepository bookRepository) {
+    private final BookRepository bookRepository;
+    private final GeneralMapper generalMapper;
+
+    public BookService(BookRepository bookRepository, GeneralMapper generalMapper) {
         this.bookRepository = bookRepository;
+        this.generalMapper = generalMapper;
     }
 
     public Book addBook(String title, String authorId) {
@@ -22,23 +29,33 @@ public class BookService {
                 .title(title)
                 .authorId(authorId)
                 .build();
-        return bookRepository.save(book);
+
+        BookDataModel bookDataModel = generalMapper.toBookDataModel(book);
+        BookDataModel savedBookDataModel = bookRepository.save(bookDataModel);
+        return generalMapper.toBook(savedBookDataModel);
     }
 
     public Optional<Book> findById(String id) {
-        return bookRepository.findById(id);
+        Optional<BookDataModel> bookDataModel = bookRepository.findById(id);
+        return bookDataModel.map(generalMapper::toBook);
     }
 
+    @Transactional
     public void deleteById(String id) {
         bookRepository.deleteById(id);
     }
 
     public Collection<Book> findBooksByAuthorId(String authorId) {
-        return bookRepository.findBooksByAuthorId(authorId);  // Assuming custom query method in BookRepository
+        Collection<BookDataModel> bookDataModels = bookRepository.findBooksByAuthorId(authorId);
+        Collection<Book> books = new ArrayList<>();
+        for (BookDataModel bookDataModel : bookDataModels) {
+            books.add(generalMapper.toBook(bookDataModel));
+        }
+        return books;
     }
 
-
+    @Transactional
     public boolean deleteByAuthorId(String authorId) {
-        return bookRepository.deleteAllByAuthorId(authorId);  // Assuming custom query method in BookRepository
+        return bookRepository.deleteAllByAuthorId(authorId);
     }
 }

@@ -2,7 +2,9 @@ package tutorials.databases.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tutorials.databases.datamodels.author.AuthorDataModel;
 import tutorials.databases.domain.Author;
+import tutorials.databases.mappers.GeneralMapper;
 import tutorials.databases.repositories.AuthorRepository;
 import tutorials.databases.repositories.BookRepository;
 
@@ -14,10 +16,12 @@ public class AuthorService {
 
     private final AuthorRepository authorRepository;
     private final BookRepository bookRepository;
+    private final GeneralMapper generalMapper;
 
-    public AuthorService(AuthorRepository authorRepository, BookRepository bookRepository) {
+    public AuthorService(AuthorRepository authorRepository, BookRepository bookRepository, GeneralMapper generalMapper) {
         this.authorRepository = authorRepository;
         this.bookRepository = bookRepository;
+        this.generalMapper = generalMapper;
     }
 
     public Author addAuthor(String name, String address) {
@@ -26,11 +30,15 @@ public class AuthorService {
                 .name(name)
                 .address(address)
                 .build();
-        return authorRepository.save(author);
+
+        AuthorDataModel authorDataModel = generalMapper.toAuthorDataModel(author);
+        AuthorDataModel savedAuthorDataModel = authorRepository.save(authorDataModel);
+        return generalMapper.toAuthor(savedAuthorDataModel);
     }
 
     public Optional<Author> findById(String authorId) {
-        return authorRepository.findById(authorId);
+        Optional<AuthorDataModel> authorDataModel = authorRepository.findById(authorId);
+        return authorDataModel.map(generalMapper::toAuthor);
     }
 
     @Transactional

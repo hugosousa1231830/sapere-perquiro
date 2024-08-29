@@ -542,6 +542,16 @@ We will start by creating our entities: Authors, Books, and Publishers. I am not
 of the object itself, in fact I'll be creating them using Lombok, which sucks for atomicity. Nevertheless let us assume
 all object fields are atomic and required and if we need to change any non-PK field, we can simply edit the object.
 
+IMPORTANT NOTE: This is the author coming in from the future, later on I will try to use these domain objects as data models
+by slapping all kinds of annotations together. This worked for a while, but as I was adding more databases, lots of conflicts
+started to appear, for example springboot asking for beans just by analyzing annotations. This to say that later on, 
+during my approach to Redis, I will undo annotating these domain objects, and will create separate data models for each
+database. This is a good practice, as it allows for a better separation of concerns and avoids conflicts. And I learned 
+that the hard way. TLDR: If you are following this, when I talk about annotating domain objects, just jump over to check
+how I did the data models and the mappers. Unless you want to suffer what I did, which is also a learning experience.
+To clarify, we maintain the lombok annotations, but when we start annotating for JPA and so on (like @Entity, @Table, etc),
+just ignore me and go for the data models instead.
+
 Under the root package, create a domain package and slap the following classes in there:
 ```java
 package tutorials.databases.domain;
@@ -1064,7 +1074,13 @@ public interface BookRepository{
 }
 ```
 
-Finally we need to annotate our domain classes with JPA annotations. This is because we are using JPA repositories, and
+NOTE FROM THE FUTURE: Turns out the next bit is a terrible idea, do not start annotating your domain objects with JPA
+annotations. It will work great if we only have 1 database, but if you ever need to add more, and be tempted to add more
+annotations from different databases to the same class, lots of trouble will occur. Feel free to jump over to the Redis 
+section where I will create the different data models and mappers, including JPA. Or you may continue with this, but be
+warned.
+
+Finally, we need to annotate our domain classes with JPA annotations. This is because we are using JPA repositories, and
 JPA needs to know how to map the entities to the database. We will add the annotations to the domain classes:
 ```java
 package tutorials.databases.domain;
@@ -1518,6 +1534,12 @@ public class CassandraRepositoryConfiguration extends AbstractCassandraConfigura
     }
 }
 ```
+
+NOTE FROM THE FUTURE: Do not do what I am about to tell you. I've repeated this a few times during this project. But in case
+you are jumping around and not reading it as a whole, go for the data model and mapper approach I mention during the Redis
+section. Over-annotating the domain classes will lead to a lot of trouble with springboot. Lets do the best practice and
+keep the domain classes clean.
+
 Next, like with JPA we need to annotate the domain classes with the appropriate annotations. I have kept the annotations
 for JPA but added the Cassandra ones as well:
 ```java
@@ -1895,6 +1917,1006 @@ use, probably by adding some conditional logic in our service layer. Spring’s 
 So, here’s the plan: we’ll create a separate data model for each database and a corresponding mapper for each domain object. 
 We’ll adjust our service layer to use the correct mapper based on the database in use. If this works out, it might even make 
 it possible to give Cassandra another shot.
+
+## Understanding data models
+Before we dive into creating data models and mappers, let’s take a moment to understand what they are and why they’re
+important. Data models define how the data is organized, stored, and accessed within a database system. In essence, they 
+are "objects", that are built in an object-oriented way (in our case), that serve as a blueprint for how we want data to be 
+structured in the database. Considering each database has an api, and we have frameworks like Spring Data to help us, we
+can create these objects in a way that they can be easily mapped to the database. Most of the time, these objects are
+simple POJOs with specific annotations that tell the framework how to map them to the database and vice versa.
+
+## Constructing data models for each database: jpa, mongoDB, cassandra and redis
+Let's start by removing all the annotations from our domain classes. 
+
+We will then create a new package called data models. For added clarity, we will create a subpackage for each kind of 
+object (arguably we can do it by database, but turns out I have more database support than objects!). For instance
+in the author package we will have: AuthorCassandraDataModel, AuthorJpaDataModel, AuthorMongoDataModel and AuthorRedisDataModel.
+Continue the same rationale for the other objects.
+
+## The architectural strategy for the data models
+We want our service to work with every database. We also do not want our service to care for choosing which supporting
+structures to use (our mappers, our repositories, our datamodels). This poses quite an interesting challenge that can be
+sorted using the good old interface segregation principle. We could make our mappers static, but then the service would 
+have to know which one to pick, but if we give springboot the responsibility of creating the mappers, we can use the 
+@Profile annotation to only create the ones we want. This way, the service will only have to call an abstract mapper
+interface, and springboot will provide the correct one. 
+
+To do this we have to create an interface which I called a general mapper. This mapper will be injected dynamically by
+springboot at the constructor level. Now we need to create a mapper implementation for each database. Arguably, we could
+place another layer of abstraction, this was if we ever wanted to make another mapper for the same database, but for now
+we will keep it like this. 
+
+So we have our general interface that gets injected in our service; we have 4 mapper concrete implementations, one for each
+database, and flagged with the appropriate @Profile annotation; We now need to actually create the mapper logic for each.
+
+Now we are set on our mapper strategy, we need to understand how we are tackling the data models with appropriate polymorphism.
+Considering we could have a data model for each database, per domain object. We would then have for instance: 1 AuthorJPADataModel,
+1 AuthorMongoDataModel, 1 AuthorCassandraDataModel and 1 AuthorRedisDataModel. Considering we want to keep the service as
+clean as possible, we will have to create a general data model interface, otherwise the service would have to be prepared
+to receive either a JPA, Mongo, Cassandra or Redis data model. 
+
+Now to solve this conundrum we will create a general data model interface, and then create a concrete implementation for each.
+For instance, our AuthorDataModel interface will have 4 concrete implementations: AuthorJPADataModel, AuthorMongoDataModel,
+AuthorCassandraDataModel and AuthorRedisDataModel. And now the rest is up to our mappers to apply their protected variation
+goodness (I think its protected variation??). 
+
+Back to the mappers, our methods will have to receive the domain object and return a general data model object, whilst
+inside the method we will have to cast the domain object to the specific data model object. 
+
+## Continuing with the data models
+Let's create the data model interfaces. Let us not worry about the methods yet:
+```java
+package tutorials.databases.datamodels.author;
+
+public interface AuthorDataModel {
+}
+```
+```java
+package tutorials.databases.datamodels.book;
+
+public interface PublisherDataModel {
+}
+```
+```java
+package tutorials.databases.datamodels.publisher;
+
+public interface BookDataModel {
+}
+```
+Now let's create the JPA data models:
+```java
+package tutorials.databases.datamodels.author;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Entity
+@Table(name = "authors")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AuthorJPADataModel implements AuthorDataModel {
+
+    @Id
+    private String id;
+    private String name;
+    private String address;
+}
+```
+```java
+package tutorials.databases.datamodels.book;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Entity
+@Table(name = "publishers")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PublisherJPADataModel implements PublisherDataModel {
+
+    @Id
+    private String id;
+    private String name;
+    private String address;
+}
+```
+```java
+package tutorials.databases.datamodels.publisher;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Entity
+@Table(name = "books")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookJPADataModel implements BookDataModel {
+
+    @Id
+    private String id;
+    private String title;
+    private String genre;
+    private String authorId;
+    private String publisherId;
+}
+```
+Note on JPA annotations: I will provide just a brief explanation of SOME of the annotations used in the JPA data models.
+@Entity: This annotation marks the class as an entity, which means it will be mapped to a database table.
+@Table: This annotation specifies the name of the table to which the entity is mapped. If not specified, the table name 
+will be the same as the class name (calling it BookJPADataModel would create a table called book_jpa_data_model).
+@Id: This annotation specifies the primary key of the entity. It can be applied to a field or property of the entity class.
+There are others like @GeneratedValue, @Column, @JoinColumn, @OneToMany, @ManyToOne, @ManyToMany, @OneToOne, @JoinTable, etc.
+JPA can also manage the id generation for you, and you can specify the strategy with @GeneratedValue(strategy = GenerationType.AUTO).
+
+Now onwards to the mongo data models:
+```java
+package tutorials.databases.datamodels.author;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Document(collection = "authors")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AuthorMongoDataModel implements AuthorDataModel {
+
+    @Id
+    private String id;
+
+    private String name;
+
+    private String address;
+}
+```
+```java
+package tutorials.databases.datamodels.book;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Document(collection = "publishers")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PublisherMongoDataModel implements PublisherDataModel {
+
+    @Id
+    private String id;
+
+    private String name;
+
+    private String address;
+}
+```
+```java
+package tutorials.databases.datamodels.publisher;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Document(collection = "books")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookMongoDataModel implements BookDataModel {
+
+    @Id
+    private String id;
+
+    private String title;
+
+    private String genre;
+
+    private String authorId;
+
+    private String publisherId;
+}
+```
+Notes on MongoDB annotations (there are loads of options): 
+@Document: This annotation marks the class as a document, which means it will be mapped to a collection in MongoDB. 
+@Id: This annotation specifies the primary key of the document. It can be applied to a field or property of the document class.
+There are other annotations like @Field, @Indexed, @DBRef, @TextIndexed, @GeoSpatialIndexed, @CompoundIndex, etc. 
+
+Moving on to Cassandra data models:
+```java
+package tutorials.databases.datamodels.author;
+
+import org.springframework.data.cassandra.core.mapping.PrimaryKey;
+import org.springframework.data.cassandra.core.mapping.Table;
+import org.springframework.data.cassandra.core.mapping.Column;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Table("authors")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AuthorCassandraDataModel implements AuthorDataModel {
+
+    @PrimaryKey
+    private String id;
+
+    @Column("name")
+    private String name;
+
+    @Column("address")
+    private String address;
+}
+```
+```java
+package tutorials.databases.datamodels.book;
+
+import org.springframework.data.cassandra.core.mapping.PrimaryKey;
+import org.springframework.data.cassandra.core.mapping.Table;
+import org.springframework.data.cassandra.core.mapping.Column;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Table("publishers")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PublisherCassandraDataModel implements PublisherDataModel {
+
+    @PrimaryKey
+    private String id;
+
+    @Column("name")
+    private String name;
+
+    @Column("address")
+    private String address;
+}
+```
+```java
+package tutorials.databases.datamodels.publisher;
+
+import org.springframework.data.cassandra.core.mapping.PrimaryKey;
+import org.springframework.data.cassandra.core.mapping.Table;
+import org.springframework.data.cassandra.core.mapping.Column;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Table("books")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookCassandraDataModel implements BookDataModel {
+
+    @PrimaryKey
+    private String id;
+
+    @Column("title")
+    private String title;
+
+    @Column("genre")
+    private String genre;
+
+    @Column("author_id")
+    private String authorId;
+
+    @Column("publisher_id")
+    private String publisherId;
+}
+```
+Notes on Cassandra annotations:
+@Table: This annotation specifies the name of the table to which the entity is mapped. If not specified, the table name
+will be the same as the class name (calling it BookCassandraDataModel would create a table called book_cassandra_data_model).
+@PrimaryKey: This annotation specifies the primary key of the entity. It can be applied to a field or property of the entity class.
+@Column: This annotation specifies the column name to which the field or property is mapped. If not specified, the column name
+will be the same as the field or property name. We could arguably leave this out, but it is good practice to specify it.
+
+Finally, let's create the Redis data models:
+```java
+package tutorials.databases.datamodels.author;
+
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.annotation.Id;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@RedisHash("authors")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AuthorRedisDataModel implements AuthorDataModel {
+
+    @Id
+    private String id;
+
+    private String name;
+
+    private String address;
+}
+```
+```java
+package tutorials.databases.datamodels.book;
+
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.annotation.Id;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@RedisHash("publishers")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PublisherRedisDataModel implements PublisherDataModel {
+
+    @Id
+    private String id;
+
+    private String name;
+
+    private String address;
+}
+```
+```java
+package tutorials.databases.datamodels.publisher;
+
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.annotation.Id;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@RedisHash("books")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookRedisDataModel implements BookDataModel {
+
+    @Id
+    private String id;
+
+    private String title;
+
+    private String genre;
+
+    private String authorId;
+
+    private String publisherId;
+}
+```
+Notes on Redis annotations:
+@RedisHash: This annotation marks the class as a Redis hash, which means it will be stored as a hash in Redis.
+@Id: This annotation specifies the primary key of the hash. It can be applied to a field or property of the hash class.
+
+## Finishing the data model interfaces
+Now that we have our concrete implementations, we can finish the interfaces. We will add the methods that will be used by
+the mappers to convert the domain objects to the data models. Considering we are using lombok, we basically want to
+replicate the getters and setters:
+```java
+package tutorials.databases.datamodels.author;
+
+public interface AuthorDataModel {
+    String getId();
+    void setId(String id);
+
+    String getName();
+    void setName(String name);
+
+    String getAddress();
+    void setAddress(String address);
+}
+```
+```java
+package tutorials.databases.datamodels.book;
+
+public interface PublisherDataModel {
+    String getId();
+    void setId(String id);
+
+    String getName();
+    void setName(String name);
+
+    String getAddress();
+    void setAddress(String address);
+}
+```
+```java
+package tutorials.databases.datamodels.publisher;
+
+public interface BookDataModel {
+    String getId();
+    void setId(String id);
+
+    String getTitle();
+    void setTitle(String title);
+
+    String getGenre();
+    void setGenre(String genre);
+
+    String getAuthorId();
+    void setAuthorId(String authorId);
+
+    String getPublisherId();
+    void setPublisherId(String publisherId);
+}
+```
+
+## Creating the mappers
+I will create 1 mapper for each database, and they will implement the general mapper interface and have methods to cover
+all the domain objects. For JPA:
+```java
+package tutorials.databases.mappers;
+
+import tutorials.databases.domain.Author;
+import tutorials.databases.domain.Book;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.datamodels.author.AuthorDataModel;
+import tutorials.databases.datamodels.book.PublisherDataModel;
+import tutorials.databases.datamodels.publisher.BookDataModel;
+import tutorials.databases.datamodels.author.AuthorJPADataModel;
+import tutorials.databases.datamodels.book.PublisherJPADataModel;
+import tutorials.databases.datamodels.publisher.BookJPADataModel;
+import org.springframework.stereotype.Component;
+
+@Component
+@Profile("jpa")
+public class JpaMapperImpl implements GeneralMapper{
+    
+    public AuthorDataModel toAuthorDataModel(Author author) {
+        if (author == null) {
+            return null;
+        }
+        return new AuthorJPADataModel(
+                author.getId(),
+                author.getName(),
+                author.getAddress()
+        );
+    }
+    
+    public Author toAuthor(AuthorDataModel authorDataModel) {
+        if (authorDataModel == null) {
+            return null;
+        }
+        return new Author(
+                authorDataModel.getId(),
+                authorDataModel.getName(),
+                authorDataModel.getAddress()
+        );
+    }
+    
+    public PublisherDataModel toPublisherDataModel(Publisher publisher) {
+        if (publisher == null) {
+            return null;
+        }
+        return new PublisherJPADataModel(
+                publisher.getId(),
+                publisher.getName(),
+                publisher.getAddress()
+        );
+    }
+    
+    public Publisher toPublisher(PublisherDataModel publisherDataModel) {
+        if (publisherDataModel == null) {
+            return null;
+        }
+        return new Publisher(
+                publisherDataModel.getId(),
+                publisherDataModel.getName(),
+                publisherDataModel.getAddress()
+        );
+    }
+    
+    public BookDataModel toBookDataModel(Book book) {
+        if (book == null) {
+            return null;
+        }
+        return new BookJPADataModel(
+                book.getId(),
+                book.getTitle(),
+                book.getGenre(),
+                book.getAuthorId(),
+                book.getPublisherId()
+        );
+    }
+    
+    public Book toBook(BookDataModel bookDataModel) {
+        if (bookDataModel == null) {
+            return null;
+        }
+        return new Book(
+                bookDataModel.getId(),
+                bookDataModel.getTitle(),
+                bookDataModel.getGenre(),
+                bookDataModel.getAuthorId(),
+                bookDataModel.getPublisherId()
+        );
+    }
+}
+```
+For mongoDB:
+```java
+package tutorials.databases.mappers;
+
+import tutorials.databases.datamodels.author.AuthorMongoDataModel;
+import tutorials.databases.datamodels.book.PublisherMongoDataModel;
+import tutorials.databases.datamodels.publisher.BookMongoDataModel;
+import tutorials.databases.domain.Author;
+import tutorials.databases.domain.Book;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.datamodels.author.AuthorDataModel;
+import tutorials.databases.datamodels.book.PublisherDataModel;
+import tutorials.databases.datamodels.publisher.BookDataModel;
+import org.springframework.stereotype.Component;
+
+@Component
+@Profile("mongo")
+public class MongoMapperImpl implements GeneralMapper{
+
+    public AuthorDataModel toAuthorDataModel(Author author) {
+        if (author == null) {
+            return null;
+        }
+        return new AuthorMongoDataModel(
+                author.getId(),
+                author.getName(),
+                author.getAddress()
+        );
+    }
+
+    public Author toAuthor(AuthorDataModel authorDataModel) {
+        if (authorDataModel == null) {
+            return null;
+        }
+        return new Author(
+                authorDataModel.getId(),
+                authorDataModel.getName(),
+                authorDataModel.getAddress()
+        );
+    }
+
+    public PublisherDataModel toPublisherDataModel(Publisher publisher) {
+        if (publisher == null) {
+            return null;
+        }
+        return new PublisherMongoDataModel(
+                publisher.getId(),
+                publisher.getName(),
+                publisher.getAddress()
+        );
+    }
+
+    public Publisher toPublisher(PublisherDataModel publisherDataModel) {
+        if (publisherDataModel == null) {
+            return null;
+        }
+        return new Publisher(
+                publisherDataModel.getId(),
+                publisherDataModel.getName(),
+                publisherDataModel.getAddress()
+        );
+    }
+
+    public BookDataModel toBookDataModel(Book book) {
+        if (book == null) {
+            return null;
+        }
+        return new BookMongoDataModel(
+                book.getId(),
+                book.getTitle(),
+                book.getGenre(),
+                book.getAuthorId(),
+                book.getPublisherId()
+        );
+    }
+
+    public Book toBook(BookDataModel bookDataModel) {
+        if (bookDataModel == null) {
+            return null;
+        }
+        return new Book(
+                bookDataModel.getId(),
+                bookDataModel.getTitle(),
+                bookDataModel.getGenre(),
+                bookDataModel.getAuthorId(),
+                bookDataModel.getPublisherId()
+        );
+    }
+}
+```
+For Cassandra:
+```java
+package tutorials.databases.mappers;
+
+import tutorials.databases.datamodels.author.AuthorCassandraDataModel;
+import tutorials.databases.datamodels.book.PublisherCassandraDataModel;
+import tutorials.databases.datamodels.publisher.BookCassandraDataModel;
+import tutorials.databases.domain.Author;
+import tutorials.databases.domain.Book;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.datamodels.author.AuthorDataModel;
+import tutorials.databases.datamodels.book.PublisherDataModel;
+import tutorials.databases.datamodels.publisher.BookDataModel;
+import org.springframework.stereotype.Component;
+
+@Component
+@Profile("cassandra")
+public class CassandraMapperImpl implements GeneralMapper{
+
+   public AuthorDataModel toAuthorDataModel(Author author) {
+      if (author == null) {
+         return null;
+      }
+      return new AuthorCassandraDataModel(
+              author.getId(),
+              author.getName(),
+              author.getAddress()
+      );
+   }
+
+   public Author toAuthor(AuthorDataModel authorDataModel) {
+      if (authorDataModel == null) {
+         return null;
+      }
+      return new Author(
+              authorDataModel.getId(),
+              authorDataModel.getName(),
+              authorDataModel.getAddress()
+      );
+   }
+
+   public PublisherDataModel toPublisherDataModel(Publisher publisher) {
+      if (publisher == null) {
+         return null;
+      }
+      return new PublisherCassandraDataModel(
+              publisher.getId(),
+              publisher.getName(),
+              publisher.getAddress()
+      );
+   }
+
+   public Publisher toPublisher(PublisherDataModel publisherDataModel) {
+      if (publisherDataModel == null) {
+         return null;
+      }
+      return new Publisher(
+              publisherDataModel.getId(),
+              publisherDataModel.getName(),
+              publisherDataModel.getAddress()
+      );
+   }
+
+   public BookDataModel toBookDataModel(Book book) {
+      if (book == null) {
+         return null;
+      }
+      return new BookCassandraDataModel(
+              book.getId(),
+              book.getTitle(),
+              book.getGenre(),
+              book.getAuthorId(),
+              book.getPublisherId()
+      );
+   }
+
+   public Book toBook(BookDataModel bookDataModel) {
+      if (bookDataModel == null) {
+         return null;
+      }
+      return new Book(
+              bookDataModel.getId(),
+              bookDataModel.getTitle(),
+              bookDataModel.getGenre(),
+              bookDataModel.getAuthorId(),
+              bookDataModel.getPublisherId()
+      );
+   }
+}
+```
+For Redis:
+```java
+package tutorials.databases.mappers;
+
+import tutorials.databases.datamodels.author.AuthorRedisDataModel;
+import tutorials.databases.datamodels.book.PublisherRedisDataModel;
+import tutorials.databases.datamodels.publisher.BookRedisDataModel;
+import tutorials.databases.domain.Author;
+import tutorials.databases.domain.Book;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.datamodels.author.AuthorDataModel;
+import tutorials.databases.datamodels.book.PublisherDataModel;
+import tutorials.databases.datamodels.publisher.BookDataModel;
+import org.springframework.stereotype.Component;
+
+@Component
+@Profile("redis")
+public class RedisMapperImpl implements GeneralMapper{
+
+    public AuthorDataModel toAuthorDataModel(Author author) {
+        if (author == null) {
+            return null;
+        }
+        return new AuthorRedisDataModel(
+                author.getId(),
+                author.getName(),
+                author.getAddress()
+        );
+    }
+
+    public Author toAuthor(AuthorDataModel authorDataModel) {
+        if (authorDataModel == null) {
+            return null;
+        }
+        return new Author(
+                authorDataModel.getId(),
+                authorDataModel.getName(),
+                authorDataModel.getAddress()
+        );
+    }
+
+    public PublisherDataModel toPublisherDataModel(Publisher publisher) {
+        if (publisher == null) {
+            return null;
+        }
+        return new PublisherRedisDataModel(
+                publisher.getId(),
+                publisher.getName(),
+                publisher.getAddress()
+        );
+    }
+
+    public Publisher toPublisher(PublisherDataModel publisherDataModel) {
+        if (publisherDataModel == null) {
+            return null;
+        }
+        return new Publisher(
+                publisherDataModel.getId(),
+                publisherDataModel.getName(),
+                publisherDataModel.getAddress()
+        );
+    }
+
+    public BookDataModel toBookDataModel(Book book) {
+        if (book == null) {
+            return null;
+        }
+        return new BookRedisDataModel(
+                book.getId(),
+                book.getTitle(),
+                book.getGenre(),
+                book.getAuthorId(),
+                book.getPublisherId()
+        );
+    }
+
+    public Book toBook(BookDataModel bookDataModel) {
+        if (bookDataModel == null) {
+            return null;
+        }
+        return new Book(
+                bookDataModel.getId(),
+                bookDataModel.getTitle(),
+                bookDataModel.getGenre(),
+                bookDataModel.getAuthorId(),
+                bookDataModel.getPublisherId()
+        );
+    }
+}
+```
+Finally the interface should look like this:
+```java
+package tutorials.databases.mappers;
+
+import tutorials.databases.datamodels.author.AuthorDataModel;
+import tutorials.databases.datamodels.book.PublisherDataModel;
+import tutorials.databases.datamodels.publisher.BookDataModel;
+import tutorials.databases.domain.Author;
+import tutorials.databases.domain.Book;
+import tutorials.databases.domain.Publisher;
+
+public interface GeneralMapper {
+    AuthorDataModel toAuthorDataModel(Author author);
+    Author toAuthor(AuthorDataModel authorDataModel);
+
+    PublisherDataModel toPublisherDataModel(Publisher publisher);
+    Publisher toPublisher(PublisherDataModel publisherDataModel);
+
+    BookDataModel toBookDataModel(Book book);
+    Book toBook(BookDataModel bookDataModel);
+}
+```
+
+Finally, the service layer will have to be updated to use the mappers, and the repositories will have to be updated to use
+the data models:
+```java
+package tutorials.databases.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tutorials.databases.datamodels.author.AuthorDataModel;
+import tutorials.databases.domain.Author;
+import tutorials.databases.mappers.GeneralMapper;
+import tutorials.databases.repositories.AuthorRepository;
+import tutorials.databases.repositories.BookRepository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class AuthorService {
+
+    private final AuthorRepository authorRepository;
+    private final BookRepository bookRepository;
+    private final GeneralMapper generalMapper;
+
+    public AuthorService(AuthorRepository authorRepository, BookRepository bookRepository, GeneralMapper generalMapper) {
+        this.authorRepository = authorRepository;
+        this.bookRepository = bookRepository;
+        this.generalMapper = generalMapper;
+    }
+
+    public Author addAuthor(String name, String address) {
+        Author author = Author.builder()
+                .id(UUID.randomUUID().toString())
+                .name(name)
+                .address(address)
+                .build();
+
+        AuthorDataModel authorDataModel = generalMapper.toAuthorDataModel(author);
+        AuthorDataModel savedAuthorDataModel = authorRepository.save(authorDataModel);
+        return generalMapper.toAuthor(savedAuthorDataModel);
+    }
+
+    public Optional<Author> findById(String authorId) {
+        Optional<AuthorDataModel> authorDataModel = authorRepository.findById(authorId);
+        return authorDataModel.map(generalMapper::toAuthor);
+    }
+
+    @Transactional
+    public void deleteAuthor(String id) {
+        bookRepository.deleteAllByAuthorId(id);
+        authorRepository.deleteById(id);
+    }
+}
+```
+```java
+package tutorials.databases.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tutorials.databases.datamodels.publisher.BookDataModel;
+import tutorials.databases.domain.Book;
+import tutorials.databases.mappers.GeneralMapper;
+import tutorials.databases.repositories.BookRepository;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final GeneralMapper generalMapper;
+
+    public BookService(BookRepository bookRepository, GeneralMapper generalMapper) {
+        this.bookRepository = bookRepository;
+        this.generalMapper = generalMapper;
+    }
+
+    public Book addBook(String title, String authorId) {
+        Book book = Book.builder()
+                .id(UUID.randomUUID().toString())
+                .title(title)
+                .authorId(authorId)
+                .build();
+
+        BookDataModel bookDataModel = generalMapper.toBookDataModel(book);
+        BookDataModel savedBookDataModel = bookRepository.save(bookDataModel);
+        return generalMapper.toBook(savedBookDataModel);
+    }
+
+    public Optional<Book> findById(String id) {
+        Optional<BookDataModel> bookDataModel = bookRepository.findById(id);
+        return bookDataModel.map(generalMapper::toBook);
+    }
+
+    @Transactional
+    public void deleteById(String id) {
+        bookRepository.deleteById(id);
+    }
+
+    public Collection<Book> findBooksByAuthorId(String authorId) {
+        Collection<BookDataModel> bookDataModels = bookRepository.findBooksByAuthorId(authorId);
+        Collection<Book> books = new ArrayList<>();
+        for (BookDataModel bookDataModel : bookDataModels) {
+            books.add(generalMapper.toBook(bookDataModel));
+        }
+        return books;
+    }
+
+    @Transactional
+    public boolean deleteByAuthorId(String authorId) {
+        return bookRepository.deleteAllByAuthorId(authorId);
+    }
+}
+```
+```java
+package tutorials.databases.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tutorials.databases.datamodels.book.PublisherDataModel;
+import tutorials.databases.domain.Publisher;
+import tutorials.databases.mappers.GeneralMapper;
+import tutorials.databases.repositories.PublisherRepository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class PublisherService {
+
+    private final PublisherRepository publisherRepository;
+    private final GeneralMapper generalMapper;
+
+    public PublisherService(PublisherRepository publisherRepository, GeneralMapper generalMapper) {
+        this.publisherRepository = publisherRepository;
+        this.generalMapper = generalMapper;
+    }
+
+    // Adds a new publisher with the provided name and address
+    public Publisher addPublisher(String name, String address) {
+        Publisher publisher = Publisher.builder()
+                .id(UUID.randomUUID().toString())
+                .name(name)
+                .address(address)
+                .build();
+
+        PublisherDataModel publisherDataModel = generalMapper.toPublisherDataModel(publisher);
+        PublisherDataModel savedPublisherDataModel = publisherRepository.save(publisherDataModel);
+        return generalMapper.toPublisher(savedPublisherDataModel);
+    }
+
+    // Finds a publisher by its ID
+    public Optional<Publisher> findById(String id) {
+        Optional<PublisherDataModel> publisherDataModel = publisherRepository.findById(id);
+        return publisherDataModel.map(generalMapper::toPublisher);
+    }
+
+    // Deletes a publisher by its ID
+    @Transactional
+    public void deletePublisher(String id) {
+        publisherRepository.deleteById(id);
+    }
+}
+```
 
 
 

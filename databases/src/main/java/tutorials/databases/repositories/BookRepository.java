@@ -1,15 +1,14 @@
 package tutorials.databases.repositories;
 
-import org.springframework.stereotype.Repository;
-import tutorials.databases.domain.Book;
+import tutorials.databases.datamodels.publisher.BookDataModel;
 
 import java.util.Collection;
 import java.util.Optional;
 
 public interface BookRepository{
-    Book save(Book book);
-    Optional<Book> findById (String id);
+    BookDataModel save(BookDataModel book);
+    Optional<BookDataModel> findById (String id);
     void deleteById(String authorId);
-    Collection<Book> findBooksByAuthorId(String authorId);
+    Collection<BookDataModel> findBooksByAuthorId(String authorId);
     boolean deleteAllByAuthorId(String authorId);
 }
