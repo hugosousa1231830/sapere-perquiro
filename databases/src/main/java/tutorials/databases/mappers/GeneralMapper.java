@@ -1,8 +1,8 @@
 package tutorials.databases.mappers;
 
-import tutorials.databases.datamodels.author.AuthorDataModel;
-import tutorials.databases.datamodels.book.PublisherDataModel;
-import tutorials.databases.datamodels.publisher.BookDataModel;
+import tutorials.databases.repositories.datamodels.author.AuthorDataModel;
+import tutorials.databases.repositories.datamodels.book.PublisherDataModel;
+import tutorials.databases.repositories.datamodels.publisher.BookDataModel;
 import tutorials.databases.domain.Author;
 import tutorials.databases.domain.Book;
 import tutorials.databases.domain.Publisher;

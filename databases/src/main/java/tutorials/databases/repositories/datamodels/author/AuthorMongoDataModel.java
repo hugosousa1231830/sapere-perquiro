@@ -1,4 +1,4 @@
-package tutorials.databases.datamodels.author;
+package tutorials.databases.repositories.datamodels.author;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;

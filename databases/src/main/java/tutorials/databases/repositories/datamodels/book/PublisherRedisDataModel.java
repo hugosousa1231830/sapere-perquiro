@@ -1,16 +1,16 @@
-package tutorials.databases.datamodels.book;
+package tutorials.databases.repositories.datamodels.book;
 
+import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-@Document(collection = "publishers")
+@RedisHash("publishers")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PublisherMongoDataModel implements PublisherDataModel {
+public class PublisherRedisDataModel implements PublisherDataModel {
 
     @Id
     private String id;

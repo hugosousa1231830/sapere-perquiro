@@ -2,15 +2,15 @@ package tutorials.databases.mappers;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import tutorials.databases.datamodels.author.AuthorRedisDataModel;
-import tutorials.databases.datamodels.book.PublisherRedisDataModel;
-import tutorials.databases.datamodels.publisher.BookRedisDataModel;
+import tutorials.databases.repositories.datamodels.author.AuthorRedisDataModel;
+import tutorials.databases.repositories.datamodels.book.PublisherRedisDataModel;
+import tutorials.databases.repositories.datamodels.publisher.BookRedisDataModel;
 import tutorials.databases.domain.Author;
 import tutorials.databases.domain.Book;
 import tutorials.databases.domain.Publisher;
-import tutorials.databases.datamodels.author.AuthorDataModel;
-import tutorials.databases.datamodels.book.PublisherDataModel;
-import tutorials.databases.datamodels.publisher.BookDataModel;
+import tutorials.databases.repositories.datamodels.author.AuthorDataModel;
+import tutorials.databases.repositories.datamodels.book.PublisherDataModel;
+import tutorials.databases.repositories.datamodels.publisher.BookDataModel;
 
 @Profile("redis")
 @Component

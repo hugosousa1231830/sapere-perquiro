@@ -2,7 +2,7 @@ package tutorials.databases.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tutorials.databases.datamodels.book.PublisherDataModel;
+import tutorials.databases.repositories.datamodels.book.PublisherDataModel;
 import tutorials.databases.domain.Publisher;
 import tutorials.databases.mappers.GeneralMapper;
 import tutorials.databases.repositories.PublisherRepository;
@@ -30,7 +30,7 @@ public class PublisherService {
                 .build();
 
         PublisherDataModel publisherDataModel = generalMapper.toPublisherDataModel(publisher);
-        PublisherDataModel savedPublisherDataModel = publisherRepository.save(publisherDataModel);
+        PublisherDataModel savedPublisherDataModel = (PublisherDataModel) publisherRepository.save(publisherDataModel);
         return generalMapper.toPublisher(savedPublisherDataModel);
     }
 

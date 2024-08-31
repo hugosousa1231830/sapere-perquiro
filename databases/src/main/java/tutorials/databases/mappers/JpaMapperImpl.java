@@ -5,12 +5,12 @@ import org.springframework.stereotype.Component;
 import tutorials.databases.domain.Author;
 import tutorials.databases.domain.Book;
 import tutorials.databases.domain.Publisher;
-import tutorials.databases.datamodels.author.AuthorDataModel;
-import tutorials.databases.datamodels.book.PublisherDataModel;
-import tutorials.databases.datamodels.publisher.BookDataModel;
-import tutorials.databases.datamodels.author.AuthorJPADataModel;
-import tutorials.databases.datamodels.book.PublisherJPADataModel;
-import tutorials.databases.datamodels.publisher.BookJPADataModel;
+import tutorials.databases.repositories.datamodels.author.AuthorDataModel;
+import tutorials.databases.repositories.datamodels.book.PublisherDataModel;
+import tutorials.databases.repositories.datamodels.publisher.BookDataModel;
+import tutorials.databases.repositories.datamodels.author.AuthorJPADataModel;
+import tutorials.databases.repositories.datamodels.book.PublisherJPADataModel;
+import tutorials.databases.repositories.datamodels.publisher.BookJPADataModel;
 
 @Profile("jpa")
 @Component

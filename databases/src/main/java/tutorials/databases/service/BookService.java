@@ -2,7 +2,7 @@ package tutorials.databases.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tutorials.databases.datamodels.publisher.BookDataModel;
+import tutorials.databases.repositories.datamodels.publisher.BookDataModel;
 import tutorials.databases.domain.Book;
 import tutorials.databases.mappers.GeneralMapper;
 import tutorials.databases.repositories.BookRepository;
@@ -31,7 +31,7 @@ public class BookService {
                 .build();
 
         BookDataModel bookDataModel = generalMapper.toBookDataModel(book);
-        BookDataModel savedBookDataModel = bookRepository.save(bookDataModel);
+        BookDataModel savedBookDataModel = (BookDataModel) bookRepository.save(bookDataModel);
         return generalMapper.toBook(savedBookDataModel);
     }
 

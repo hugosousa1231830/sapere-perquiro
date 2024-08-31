@@ -1,11 +1,9 @@
 package tutorials.databases.repositories;
 
-import tutorials.databases.datamodels.author.AuthorDataModel;
-
 import java.util.Optional;
 
-public interface AuthorRepository {
-    AuthorDataModel save(AuthorDataModel author);
-    Optional<AuthorDataModel> findById(String id);
+public interface AuthorRepository<T> {
+    T save(T author);
+    Optional<T> findById(String id);
     void deleteById(String id);
 }

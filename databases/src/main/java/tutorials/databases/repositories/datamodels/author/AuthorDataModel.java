@@ -1,4 +1,4 @@
-package tutorials.databases.datamodels.author;
+package tutorials.databases.repositories.datamodels.author;
 
 public interface AuthorDataModel {
     String getId();

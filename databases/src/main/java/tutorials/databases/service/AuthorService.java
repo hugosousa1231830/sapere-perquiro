@@ -2,7 +2,7 @@ package tutorials.databases.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tutorials.databases.datamodels.author.AuthorDataModel;
+import tutorials.databases.repositories.datamodels.author.AuthorDataModel;
 import tutorials.databases.domain.Author;
 import tutorials.databases.mappers.GeneralMapper;
 import tutorials.databases.repositories.AuthorRepository;
@@ -32,7 +32,7 @@ public class AuthorService {
                 .build();
 
         AuthorDataModel authorDataModel = generalMapper.toAuthorDataModel(author);
-        AuthorDataModel savedAuthorDataModel = authorRepository.save(authorDataModel);
+        AuthorDataModel savedAuthorDataModel = (AuthorDataModel) authorRepository.save(authorDataModel);
         return generalMapper.toAuthor(savedAuthorDataModel);
     }
 

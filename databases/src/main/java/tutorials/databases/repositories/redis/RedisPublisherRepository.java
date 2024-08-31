@@ -1,8 +1,10 @@
 package tutorials.databases.repositories.redis;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.repository.CrudRepository;
-import tutorials.databases.datamodels.book.PublisherDataModel;
 import tutorials.databases.repositories.PublisherRepository;
+import tutorials.databases.repositories.datamodels.book.PublisherRedisDataModel;
 
-public interface RedisPublisherRepository extends CrudRepository<PublisherDataModel, String>, PublisherRepository {
+@Profile("redis")
+public interface RedisPublisherRepository extends CrudRepository<PublisherRedisDataModel, String>, PublisherRepository<PublisherRedisDataModel> {
 }

@@ -1,4 +1,4 @@
-package tutorials.databases.datamodels.author;
+package tutorials.databases.repositories.datamodels.book;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -8,11 +8,11 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 @Entity
-@Table(name = "authors")
+@Table(name = "publishers")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthorJPADataModel implements AuthorDataModel {
+public class PublisherJPADataModel implements PublisherDataModel {
 
     @Id
     private String id;

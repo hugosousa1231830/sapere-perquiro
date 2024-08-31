@@ -1,4 +1,4 @@
-package tutorials.databases.datamodels.publisher;
+package tutorials.databases.repositories.datamodels.publisher;
 
 import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.annotation.Id;

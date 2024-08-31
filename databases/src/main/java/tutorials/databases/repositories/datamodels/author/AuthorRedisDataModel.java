@@ -1,4 +1,4 @@
-package tutorials.databases.datamodels.book;
+package tutorials.databases.repositories.datamodels.author;
 
 import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.annotation.Id;
@@ -6,16 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-@RedisHash("publishers")
+@RedisHash("authors")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PublisherRedisDataModel implements PublisherDataModel {
+public class AuthorRedisDataModel implements AuthorDataModel {
 
     @Id
     private String id;
-
     private String name;
-
     private String address;
 }

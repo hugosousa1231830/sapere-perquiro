@@ -1,4 +1,4 @@
-package tutorials.databases.datamodels.book;
+package tutorials.databases.repositories.datamodels.book;
 
 public interface PublisherDataModel {
     String getId();

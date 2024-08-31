@@ -1,11 +1,11 @@
 package tutorials.databases.repositories;
 
-import tutorials.databases.datamodels.book.PublisherDataModel;
+import tutorials.databases.repositories.datamodels.book.PublisherDataModel;
 
 import java.util.Optional;
 
-public interface PublisherRepository{
-    PublisherDataModel save(PublisherDataModel publisher);
-    Optional<PublisherDataModel> findById(String id);
+public interface PublisherRepository<T>{
+    T save(T publisher);
+    Optional<T> findById(String id);
     void deleteById(String authorId);
 }
