@@ -3042,99 +3042,86 @@ spring.cassandra.keyspace-name=keyspace1
 spring.cassandra.schema-action=CREATE_IF_NOT_EXISTS
 ```
 
+## Finishing touches
+I entered a few more authors, books, and publishers into the databases to ensure everything was working correctly. The
+Books queries need a bit refining, but the application is overall working as intended.
 
+I have also added a few more endpoints to the application, such as getting all authors, books, and publishers, and deleting
+authors, books, and publishers by their IDs. I have also added endpoints to get books by author ID and delete books by author ID.
 
+This might be something I will try to pursue at a later stage, perhaps improving the communication from the controllers
+(including error handling and proper status code). As it stands, the application has (mostly) succeeded in reaching the overall
+goal of integrating multiple databases with Spring Boot. Obviously there is an infinite number of improvements that could be 
+made, but for now, I am happy with the results. More time spent on this is having diminished returns.
 
-do not hallucinate
+I am more worried about synthesizing the information I have gathered and ensuring I have a good understanding of the concepts
+I have been working with.
 
+## Project reflection
+I completed a project to deepen my understanding of different types of databases and how to interact with them using Java, 
+despite having minimal experience with SQL databases and Spring Data JPA. The project aimed to integrate various databases 
+into a single application using Spring Boot, covering relational databases (RDBMS) and NoSQL databases. I explored foundational 
+concepts such as ACID and BASE principles, normalization, the CAP theorem, and advanced topics like query optimization, 
+indexes, sharding, and replication.
 
+In the theoretical overview, I covered the ACID principles—Atomicity, Consistency, Isolation, and Durability—and BASE 
+principles—Basically Available, Soft state, and Eventual consistency—highlighting their relevance to different applications. 
+I also examined the CAP Theorem, which outlines the trade-offs between Consistency, Availability, and Partition Tolerance 
+in distributed systems. I explored normalization and denormalization for data organization and performance optimization, 
+and discussed indexes and query optimization to enhance query efficiency. Sharding and partitioning were included to 
+manage large datasets, along with database operations, fault tolerance, and security to ensure reliable and secure data 
+management.
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Practically, I used MySQL, PostgreSQL, MongoDB, Cassandra, Redis, and H2 to manage different types of data. Each database 
+was set up independently with Spring Boot, Spring Data, JPA, Hibernate, JDBC, and the necessary drivers. The objective was 
+to compare their performance and suitability for various tasks, despite the project's limited scope. I observed how each 
+database type performed in real-world scenarios, gaining insights into their strengths and limitations. Relational databases 
+like MySQL and PostgreSQL provided structured data management with strong consistency (and the best experience in plugging to
+the app), while NoSQL databases such as MongoDB, Cassandra, and Redis offer flexibility and scalability for different use 
+cases. Interacting with these databases in Java involved using JDBC for RDBMS and specific drivers for NoSQL databases. 
+The repository pattern, often implemented with ORM frameworks and JPA, simplified data access, and Spring Data facilitated 
+consistent data management across various databases. This project allowed me to evaluate the tools available for efficient 
+database interactions in Java applications and understand the trade-offs involved in choosing different database types.
 
-Revised Project Plan Outline
-Overview of Different Types of Databases:
+In terms of DevOps, I created a Docker Compose file to launch the databases and a common network. This setup allowed me 
+to run MySQL, PostgreSQL, MongoDB, Cassandra, Redis, and H2 within their respective containers, all connected via a shared 
+network. I was able to access each container and test the databases directly to ensure they were functioning correctly. 
+However, I encountered issues with connectivity between Redis and the application, which I was unable to resolve during 
+the project. Despite this challenge, the Docker Compose setup provided a robust environment for managing and testing the 
+databases efficiently.
 
-Relational Databases (RDBMS):
-Examples: MySQL, PostgreSQL
-Key Features: Structured data, ACID compliance, use of SQL
-NoSQL Databases:
-Example: MongoDB
-Key Features: Schema-less, flexible data models, horizontal scaling, BASE principles
-In-Memory Databases:
-Example: Redis
-Key Features: Fast data access, key-value storage, used for caching
-Components for Java-Database Interaction:
+In terms of architecture, the project was structured with a clear separation of concerns and modularity. Each entity had 
+its own controller, and each controller was paired with a dedicated service. Each service was injected with a repository 
+interface, which was implemented by specific repositories tailored for each database. The main repository utilized generic 
+typing to accommodate dynamic data models, while each concrete repository implementation used its own concrete data models.
 
-Spring Data: Simplifies data access in Java applications
-ORM (Object-Relational Mapping): Maps Java objects to database tables
-JPA (Java Persistence API): Standard for ORM in Java
-Hibernate: Popular JPA implementation with additional features
-JDBC (Java Database Connectivity): Low-level API for executing SQL queries
-Database: The actual system storing the data (e.g., MySQL, PostgreSQL, MongoDB, Redis)
-Key Database Concepts:
+To map domain entities to data models, I employed mappers managed dynamically by Spring Boot. For inversion of control, 
+all database-specific structures were annotated with profiles to prevent the creation of duplicate beans, which could 
+interfere with the repository, service, or controller instantiation. Additionally, significant configuration adjustments
+were made in application.properties to fine-tune Spring Boot's auto-configuration. This included excluding automatic 
+configuration of Cassandra-related beans based solely on the dependency in the pom.xml, and disabling JDBC's automatic 
+data source configuration even for non-JPA repositories, likely due to unintended scans triggered by the dependency 
+management.
 
-ACID (Atomicity, Consistency, Isolation, Durability)
-BASE (Basically Available, Soft state, Eventual consistency)
-CAP Theorem (Consistency, Availability, Partition tolerance)
-Normalization and Denormalization
-Indexes and Query Optimization
-Sharding and Partitioning
-Replication and Fault Tolerance
-Practical Tutorial:
+Initially, the project aimed to use a single domain model with various types of annotations to accommodate different 
+database requirements. However, this approach led to several issues. Spring Boot's automatic scanning of annotations 
+resulted in the unintended creation of multiple beans, which caused conflicts during dependency injection. To resolve 
+these problems, the project shifted to using distinct data models for each database type. This change effectively addressed 
+the issues with bean creation and injection, allowing for more stable and predictable behavior within the application.
+There was also an attempt to completely block the auto-configuration of all database related beans, which led to the creation 
+of different configuration classes that would dynamically create database specific beans when their profile was active. 
+This was later removed as it was unnecessary when the project transitioned to datamodels. However, it wasn't a complete 
+waste as it helped in understanding how Spring Boot autoconfigures beans.
 
-Objective: Create a system with different parts of data stored in different types of databases.
-Goals:
-Demonstrate integration between Java code and various databases.
-Work with RDBMS, NoSQL, and in-memory databases in a single application.
-Dbs to be used: MySQL, PostgreSQL, MongoDB, Cassandra, Redis, H2.
-Tools and Frameworks: Spring Boot, Spring Data, JPA, Hibernate, JDBC, database drivers.
+In terms of the use cases and datasets, the project focused on basic CRUD operations for authors, books, and publishers.
+Most use cases worked, but there were some limitations in the book-related queries, which could be improved with additional
+attention to their implementation. The controllers can also be improved in terms of error handling and overall communication
+to the outside. 
 
-Dependencies to Include in Spring Initializr:
-Spring Boot Starter Dependencies:
+The differences between databases in terms of performance were not able to be ascertained due to the scope of the project
+and the dataset size. Nonetheless, the experience of working with different databases and plugging them into the application
+helped get a semblance of how they work and that was deemed sufficient for now.
 
-Spring Web: To build web applications, including RESTful services.
-Spring Data JPA: For using JPA with Hibernate as the default ORM implementation.
-Spring Data MongoDB: For interacting with MongoDB.
-Spring Data Redis: For interacting with Redis.
-Spring Boot DevTools: For development-time features like automatic restarts and live reload.
-Database Drivers:
-
-MySQL Driver: For connecting to MySQL databases.
-PostgreSQL Driver: For connecting to PostgreSQL databases.
-H2 Database (Optional): If you want an in-memory database for testing or simple development.
-Other Essential Dependencies:
-
-Lombok (Optional but Recommended): To reduce boilerplate code like getters, setters, etc.
-Spring Boot Actuator (Optional): For monitoring and managing your application.
-Steps to Set Up Your Project on Spring Initializr:
-Go to Spring Initializr.
-
-Project Metadata:
-
-Project: Maven Project
-Language: Java
-Spring Boot Version: Choose the latest stable version
-Group: com.example
-Artifact: database-project
-Name: Database Project
-Description: A project integrating multiple databases with Spring Boot
-Packaging: Jar
-Java Version: 17 (or the version you prefer)
-Add Dependencies:
-
-Spring Web
-Spring Data JPA
-Spring Data MongoDB
-Spring Data Redis
-MySQL Driver
-PostgreSQL Driver
-H2 Database (optional)
-Lombok (optional)
-Spring Boot Actuator (optional)
-Generate the Project and download the zip file.
-
-Unzip and Import the project into your IDE (e.g., IntelliJ IDEA, Eclipse).
-
-
-
-TRANSACTIONS, OPTIMISTIC LOCKING, performance, ATOMICITY
+I will end this project here, as I need to focus on other projects and learning new concepts. I will potentially revisit 
+this project at a later stage to utilize new gained knowledge (hopefully in springboot). It will probably be an interesting
+one to come back to as I will have a better understanding of the concepts and how to implement them.
