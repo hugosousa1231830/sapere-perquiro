@@ -3007,12 +3007,40 @@ having bean problems with JPA and Mongo. I even went to the extent of manually c
 to check if the info was going in, which it did.
 
 So we know both JPA repos and Mongo are working correctly, connecting to the database, and transferring info. So I attempted 
-to connect Redis (I am still recovering from the Cassandra incident).
+to connect Redis (I am still recovering from the Cassandra incident). 
+
+I also reviewed the configuration files for each database, considering we are using profiles, I thought perhaps it was not
+necessary to keep them. It turns out I no longer have to block the whole autoconfiguration (aside from JBDC when not using
+JPA). So I have changed the application properties accordingly and removed the configuration files.
 
 ## Back to Redis
 Redis is getting a bit annoying. I have followed the same principle as with other databases, ensured correct bean creation
 using the configuration but can't resolve a connection. This is probably an issue with the Lettuce driver (lettuce...really?).
-I will have to investigate further.
+After considerable time testing the connections I've gathered that RedisDB accepts connection, can ping and be pinged,
+but for some godforsaken reason it doesn't allow connections when the application is running. 
+
+As life's too short and this is probably an obscure issue, I will move on to Cassandra. I believe I am starting to get
+diminishing returns on this issue.
+
+## Cassandra's second date
+Interestingly enough, the data models sorted all of Cassandra's problems. I followed the same architectural principles
+as before and removed the old config for Cassandra.
+
+I tested the connection with postman with great success. Not forgetting of course that, as before, I had to define the 
+namespace and the tables before sending data via postman. With this done I was able to connect to Cassandra and send
+data to it.
+
+The application properties:
+```properties
+spring.profiles.active=cassandra
+spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+spring.cassandra.contact-points=localhost
+spring.cassandra.port=9042
+spring.cassandra.local-datacenter=datacenter1
+spring.cassandra.keyspace-name=keyspace1
+spring.cassandra.schema-action=CREATE_IF_NOT_EXISTS
+```
 
 
 
