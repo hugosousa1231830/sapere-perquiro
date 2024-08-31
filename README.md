@@ -33,5 +33,12 @@ springboot to aid on the implementation of kafka producers and consumers.
 This project aimed to explore the GraphQl technology and its implementation in Java. There is a theoretical part and a 
 practical part where I implemented a simple GraphQl server and used GraphiQL to test it.
 
-   
+5. **Databases** 
+I decided to create a project to deepen my understanding of various databases and how to interact with them using Java, 
+despite my minimal experience with SQL databases and Spring Data JPA. Although combining multiple databases could lead to 
+a chaotic system, I see it as an exciting challenge to integrate them into a single application with a unified entry point. 
+This project explores relational (RDBMS), NoSQL, and in-memory databases, demonstrating their integration with a Java 
+application using Spring Boot. It has taken far longer than anticipated, revealing complexities I had not fully anticipated. 
+Despite numerous headaches and ongoing hurdles, I’m persevering through the challenges. Details can be found in the specific 
+README file, but the project is still a work in progress.
 
