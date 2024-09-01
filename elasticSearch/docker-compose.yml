@@ -1,0 +1,19 @@
+version: '3'
+services:
+  elasticsearch:
+    image: elasticsearch:8.15.0
+    container_name: es-node
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.monitoring.templates.enabled=false
+      - xpack.ml.enabled=false
+      - xpack.graph.enabled=false
+      - xpack.watcher.enabled=false
+    networks:
+      - elasticsearch_custom_bridge
+networks:
+  elasticsearch_custom_bridge:
+    driver: bridge
