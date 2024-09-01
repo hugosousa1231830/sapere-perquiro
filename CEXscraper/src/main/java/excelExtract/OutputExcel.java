@@ -49,28 +49,56 @@ public class OutputExcel {
 
                 Row outputRow = outputSheet.createRow(outputRowNumber++);
 
-                Cell outputWrtName = outputRow.createCell(0);
-                outputWrtName.setCellValue(item.getWrtItemName());
+                try {
+                    Cell outputWrtName = outputRow.createCell(0);
+                    outputWrtName.setCellValue(item.getWrtItemName());
+                } catch (Exception e) {
+                    // Log or handle the exception
+                }
 
-                Cell outputCEXName = outputRow.createCell(1);
-                outputCEXName.setCellValue(item.getCexItemName());
+                try {
+                    Cell outputCEXName = outputRow.createCell(1);
+                    outputCEXName.setCellValue(item.getCexItemName());
+                } catch (Exception e) {
+                    // Log or handle the exception
+                }
 
-                Cell outputWrtPrice = outputRow.createCell(2);
-                outputWrtPrice.setCellValue(item.getWrtSellPrice());
+                try {
+                    Cell outputWrtPrice = outputRow.createCell(2);
+                    outputWrtPrice.setCellValue(item.getWrtSellPrice());
+                } catch (Exception e) {
+                    // Log or handle the exception
+                }
 
-                Cell outputCEXPrice = outputRow.createCell(3);
-                outputCEXPrice.setCellValue(item.getCexBuyPrice());
+                try {
+                    Cell outputCEXPrice = outputRow.createCell(3);
+                    outputCEXPrice.setCellValue(item.getCexBuyPrice());
+                } catch (Exception e) {
+                    // Log or handle the exception
+                }
 
-                Cell outputWrtLink = outputRow.createCell(4);
-                String ean = item.getWrtEAN(); // this gives me a float point number, that's why I use replace below
-                outputWrtLink.setCellFormula("HYPERLINK(\"https://www.worten.pt/search?query=" + ean.replace(".0","") + "\", \"link\")");
+                try {
+                    Cell outputWrtLink = outputRow.createCell(4);
+                    String ean = item.getWrtEAN(); // this gives me a float point number, that's why I use replace below
+                    outputWrtLink.setCellFormula("HYPERLINK(\"https://www.worten.pt/search?query=" + ean.replace(".0", "") + "\", \"link\")");
+                } catch (Exception e) {
+                    // Log or handle the exception
+                }
 
-                Cell outputCexLink = outputRow.createCell(5);
-                String cexUrl = item.getCexURL();
-                outputCexLink.setCellFormula("HYPERLINK(\"" + cexUrl + "\", \"link\")");
+                try {
+                    Cell outputCexLink = outputRow.createCell(5);
+                    String cexUrl = item.getCexURL();
+                    outputCexLink.setCellFormula("HYPERLINK(\"" + cexUrl + "\", \"link\")");
+                } catch (Exception e) {
+                    // Log or handle the exception
+                }
 
-                Cell outputStore = outputRow.createCell(6);
-                outputStore.setCellValue(item.getWrtStore());
+                try {
+                    Cell outputStore = outputRow.createCell(6);
+                    outputStore.setCellValue(item.getWrtStore());
+                } catch (Exception e) {
+                    // Log or handle the exception
+                }
             }
 
             try (FileOutputStream fileOut = new FileOutputStream("FilteredData.xlsx")) {
