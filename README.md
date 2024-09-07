@@ -39,6 +39,10 @@ despite my minimal experience with SQL databases and Spring Data JPA. Although c
 a chaotic system, I see it as an exciting challenge to integrate them into a single application with a unified entry point. 
 This project explores relational (RDBMS), NoSQL, and in-memory databases, demonstrating their integration with a Java 
 application using Spring Boot. It has taken far longer than anticipated, revealing complexities I had not fully anticipated. 
-Despite numerous headaches and ongoing hurdles, I’m persevering through the challenges. Details can be found in the specific 
-README file, but the project is still a work in progress.
+Despite numerous headaches and ongoing hurdles, I got the architecture to work using a single controller, service and repository interface, with the several repository implementations serving different databases. The use cases need refining, but the project was put on hold for that as it met the original architectural goal.
 
+6. **onlytheories/springboot
+This document explains the relationship between Spring and Spring Boot, highlighting how Spring Boot simplifies the complex configuration of the Spring framework by automating tasks and providing tools like autoconfiguration and dependency injection. It covers key concepts such as IoC (Inversion of Control), dependency injection, beans, component scanning, and the role of application properties. Additionally, it introduces Spring Boot Starters, Spring Initializr, and touches on testing with Spring Boot using JUnit, emphasizing the importance of understanding these tools to effectively manage and troubleshoot Spring applications.
+
+7. **eda_continuation
+This project is currently at the theoretical review stage. Practical aspect is yet to be fully defined.
