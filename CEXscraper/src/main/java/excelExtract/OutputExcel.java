@@ -1,14 +1,14 @@
 package excelExtract;
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.List;
+import java.util.Locale;
 
 public class OutputExcel {
 
@@ -18,86 +18,40 @@ public class OutputExcel {
 
             // Create the header row
             Row headerRow = outputSheet.createRow(0);
-
-            Cell headerWrtName = headerRow.createCell(0);
-            headerWrtName.setCellValue("WrtName");
-
-            Cell headerCEXName = headerRow.createCell(1);
-            headerCEXName.setCellValue("CexName");
-
-            Cell headerWrtPrice = headerRow.createCell(2);
-            headerWrtPrice.setCellValue("WRTprice");
-
-            Cell headerCEXPrice = headerRow.createCell(3);
-            headerCEXPrice.setCellValue("CEXprice");
-
-            Cell headerWrtLink = headerRow.createCell(4);
-            headerWrtLink.setCellValue("WrtLink");
-
-            Cell headerCexLink = headerRow.createCell(5);
-            headerCexLink.setCellValue("CexLink");
-
-            Cell headerStore = headerRow.createCell(6);
-            headerStore.setCellValue("Location");
+            String[] headers = {"WrtName", "CexName", "WRTprice", "CEXprice", "WrtLink", "CexLink", "Location"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell headerCell = headerRow.createCell(i);
+                headerCell.setCellValue(headers[i]);
+            }
 
             // Start filling data from row 1
             int outputRowNumber = 1;
             for (Item item : itemList) {
-                if (Double.parseDouble(item.getCexBuyPrice()) < Double.parseDouble(item.getWrtSellPrice())) {
-                    continue;
-                }
-
-                Row outputRow = outputSheet.createRow(outputRowNumber++);
-
                 try {
-                    Cell outputWrtName = outputRow.createCell(0);
-                    outputWrtName.setCellValue(item.getWrtItemName());
-                } catch (Exception e) {
-                    // Log or handle the exception
-                }
+                    double cexPrice = parsePrice(item.getCexBuyPrice());
+                    double wrtPrice = parsePrice(item.getWrtSellPrice());
 
-                try {
-                    Cell outputCEXName = outputRow.createCell(1);
-                    outputCEXName.setCellValue(item.getCexItemName());
-                } catch (Exception e) {
-                    // Log or handle the exception
-                }
+                    if (cexPrice < wrtPrice) {
+                        continue;
+                    }
 
-                try {
-                    Cell outputWrtPrice = outputRow.createCell(2);
-                    outputWrtPrice.setCellValue(item.getWrtSellPrice());
-                } catch (Exception e) {
-                    // Log or handle the exception
-                }
+                    Row outputRow = outputSheet.createRow(outputRowNumber++);
 
-                try {
-                    Cell outputCEXPrice = outputRow.createCell(3);
-                    outputCEXPrice.setCellValue(item.getCexBuyPrice());
-                } catch (Exception e) {
-                    // Log or handle the exception
-                }
+                    outputRow.createCell(0).setCellValue(item.getWrtItemName());
+                    outputRow.createCell(1).setCellValue(item.getCexItemName());
+                    outputRow.createCell(2).setCellValue(wrtPrice);
+                    outputRow.createCell(3).setCellValue(cexPrice);
 
-                try {
-                    Cell outputWrtLink = outputRow.createCell(4);
-                    String ean = item.getWrtEAN(); // this gives me a float point number, that's why I use replace below
-                    outputWrtLink.setCellFormula("HYPERLINK(\"https://www.worten.pt/search?query=" + ean.replace(".0", "") + "\", \"link\")");
-                } catch (Exception e) {
-                    // Log or handle the exception
-                }
+                    String ean = item.getWrtEAN().replace(".0", "");
+                    outputRow.createCell(4).setCellFormula(createHyperlinkFormula("https://www.worten.pt/search?query=" + ean));
 
-                try {
-                    Cell outputCexLink = outputRow.createCell(5);
                     String cexUrl = item.getCexURL();
-                    outputCexLink.setCellFormula("HYPERLINK(\"" + cexUrl + "\", \"link\")");
-                } catch (Exception e) {
-                    // Log or handle the exception
-                }
+                    outputRow.createCell(5).setCellFormula(createHyperlinkFormula(cexUrl));
 
-                try {
-                    Cell outputStore = outputRow.createCell(6);
-                    outputStore.setCellValue(item.getWrtStore());
-                } catch (Exception e) {
+                    outputRow.createCell(6).setCellValue(item.getWrtStore());
+                } catch (ParseException e) {
                     // Log or handle the exception
+                    e.printStackTrace();
                 }
             }
 
@@ -107,5 +61,16 @@ public class OutputExcel {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static double parsePrice(String price) throws ParseException {
+        NumberFormat format = NumberFormat.getInstance(Locale.getDefault());
+        Number number = format.parse(price);
+        return number.doubleValue();
+    }
+
+    private static String createHyperlinkFormula(String url) {
+        String escapedUrl = url.replace("\"", "\"\"");
+        return "HYPERLINK(\"" + escapedUrl + "\", \"" + "link" + "\")";
     }
 }

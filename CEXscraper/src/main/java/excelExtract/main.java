@@ -13,8 +13,10 @@ public class main {
 
         // LIST OF STORES:
         ArrayList<String> stores = new ArrayList<>();
-        stores.add("WRT Matosinhos");
+
         /*
+        stores.add("WRT Matosinhos");
+
         stores.add("WRT NORTE SHOPPING");
         stores.add("WRT LECA PALM MAR SH");
         stores.add("WMB PARQUE NASCENTE");
@@ -38,8 +40,40 @@ public class main {
         stores.add("WRT Vila Real");
         stores.add("WRT MOZELOS");
         stores.add("WRT AVINTES");
+        stores.add("WRT NORTE SHOPPING");
 
          */
+
+        // Periferias
+        stores.add("WRT Famalicão");
+        stores.add("WMB Aveiro Glicinias");
+        stores.add("WRT AMARANTE");
+        stores.add("WRT V. Conde");
+        stores.add("WRT Braga");
+        stores.add("WRT Paredes");
+        stores.add("WRT Guimaraes");
+        stores.add("WRT Vila Real");
+        stores.add("WRT Trofa");
+        stores.add("WRT O. Azemeis");
+        stores.add("WRT P. Varzim");
+        stores.add("WRT Fafe");
+        stores.add("WRT Viana");
+        stores.add("WMB SA Braga");
+        stores.add("WMB SA Guimarães");
+        stores.add("WRT Ponte Lima");
+        stores.add("WMB Vila Real");
+        stores.add("WMB Aveiro MCH");
+        stores.add("WRT VALONGO C");
+        stores.add("WRT AVEIRO MGS");
+        stores.add("WRT Braga Mgs LC");
+        stores.add("WRT Regua");
+        stores.add("WRT BRAGA N ARCADA");
+        stores.add("WRT FamalicãoRetail");
+        stores.add("WRT PENAFIEL");
+        stores.add("WRT ESP. GUIMARÃES");
+        stores.add("WRT GLICINIAS");
+        stores.add("WRT MARCO CANAVESES");
+
 
         // LIST OF ITEM TYPES:
         ArrayList<String> types = new ArrayList<>();
@@ -67,7 +101,7 @@ public class main {
         types.add("6803 - Vodafone");
 
 
-        String path = "CEXscraper/07. Listagem Descontinuados 1 a 31 de Julho 2024_wtalk.xlsx";
+        String path = "CEXscraper/09. Listagem Descontinuados 1 a 30 de Setembro 2024_wtalk.xlsx";
 
         List<Item> itemsFromExcel = WRTExcelSource.getSellPrices(stores, types, path);
         List<Item> itemsFromExcelWithCEXPrices = CEXScraper_v3.getCEXinfo(itemsFromExcel,cexPT);
