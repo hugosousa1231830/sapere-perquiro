@@ -264,4 +264,50 @@ Which means now the consumer for book events will have to check if the action is
 
 This is why it is important to consider where the business is at, and where it could potentially evolve to. By designing events with future changes in mind, we can create a more flexible and adaptable system that can accommodate new requirements without significant rework.
 
-# Integrating Event-Driven Architectures with Existing Systems
+# Integrating Event-Driven Architectures with Existing Systems (Skipped)
+I did not go through this chapter as I felt it was not relevant to my current objectives. I may come back to it later as it seemed to offer quite significant tips in transforming legacy systems into event-driven systems.
+
+# Event-driven processing basics - Stateless topologies
+When designing how events are processed by a microservice, it’s helpful to think in terms of the topology of the microservice. In this context, the topology refers to the sequence of operations that event data undergoes within the microservice. This sequence is often reminiscent of functional programming paradigms or big data frameworks like MapReduce, where data flows through a series of transformations and aggregations. Each step in the process serves a specific purpose, ensuring that the event data is processed accurately and efficiently according to the business logic. Below are the key stages typically involved in event processing (The stuff below was provided by ChatGPT as I felt I required more in depth information, please take it with a pinch of salt):
+
+1. Filtering
+   Purpose: The first step in processing an event is often filtering, which determines whether the event should proceed through the pipeline or be discarded.
+   Operation: The event stream is evaluated against a predefined set of criteria. Events that meet the criteria are allowed to continue, while those that don’t are filtered out. Filtering helps in reducing noise and ensures that only relevant events are processed further.
+   Example: A service might filter out all events that do not pertain to a specific customer segment or only process transactions above a certain monetary threshold.
+2. Routing
+   Purpose: After filtering, events might need to be routed to different processing paths based on their content or context.
+   Operation: Events are examined for specific attributes (e.g., event type, priority level) that determine their route within the microservice. Different routes might lead to different processing logic or even different services. Routing is crucial for ensuring that each event reaches the appropriate downstream components.
+   Example: An event indicating a high-priority incident might be routed to a different microservice or processing thread than regular events to ensure faster handling.
+3. Transformation
+   Purpose: Transformation is the process of modifying the event data to make it suitable for the subsequent stages of processing or for downstream systems.
+   Operation: The event payload might be transformed by changing its structure, altering data formats, or enhancing it with additional information. Transformations are necessary to ensure that the data is in the right shape and format for further processing or consumption by other services.
+   Example: An event containing a date in one format (e.g., UNIX timestamp) might be transformed into a more readable format (e.g., ISO 8601) before being passed on.
+4. Aggregation
+   Purpose: Aggregation involves combining multiple events or event data to produce a summarized or more complex output.
+   Operation: Events are grouped based on specific criteria (such as time window, key, or type) and then aggregated to calculate totals, averages, or other summary statistics. Aggregation is useful for generating insights from the event data or preparing it for further analysis.
+   Example: Summing the total sales of a product over a day or calculating the average response time of a service within a certain period.
+5. Materialization
+   Purpose: Materialization refers to the process of storing intermediate or final results of event processing for later use.
+   Operation: Processed events or their derived data are persisted in a stateful store (e.g., a database, cache, or key-value store). Materialization is important when the results need to be queried, analyzed, or further processed by other services or systems.
+   Example: Storing the aggregated sales data in a database so that it can be queried by a reporting service or dashboard.
+6. Enrichment
+   Purpose: Enrichment involves augmenting the event data with additional information that may not be present in the original event.
+   Operation: The microservice fetches additional data from external sources, such as databases, APIs, or other services, and merges it with the event data. Enrichment enhances the event with context or detail that is necessary for downstream processing.
+   Example: Adding customer profile information to an event that only contains a customer ID, enabling more personalized processing or decisions.
+7. Sink
+   Purpose: The final phase in the event processing topology, the sink represents the destination where the processed event is sent.
+   Operation: The processed event is output to its final destination, which could be another service, a database, a message queue, or an external system. The sink is where the results of the processing pipeline are made available for further use or action.
+   Example: Sending the transformed and enriched event to a Kafka topic, where it can be consumed by other services or systems downstream.
+8. Error Handling
+   Purpose: To ensure that errors encountered during processing do not disrupt the overall system and are handled appropriately.
+   Operation: If an error occurs at any stage, the system may retry the operation, log the error, send the event to a dead-letter queue, or trigger an alert. Effective error handling ensures resilience and robustness in the event-driven system.
+   Example: If an event fails to pass a validation check, it could be redirected to a dead-letter queue for later analysis, ensuring that invalid data does not propagate through the system.
+
+Added to the above, and considering the complexity in some cases, there are a few more types of stateless operations that may be relevant:
+1. Branching: Branching involves splitting a single event into multiple new events, each carrying a subset of the original event's data or an entirely new payload derived from it. This operation is particularly useful for parallel processing and service expansion. For example, branching allows different services to handle various aspects of the same event independently or scales the system by distributing workloads across multiple services that process data differently.
+
+2. Merging: Merging refers to combining two or more events into a single event. This is useful when related streams need to be unified for processing by a single consumer. Merging supports event correlation by bringing together events from different sources to form a complete picture of a business transaction or process, and data enrichment by combining data from multiple events to create a more enriched dataset for downstream consumers.
+
+3. Repartitioning: Repartitioning involves altering the partitioning strategy of an event stream, often by changing the key by which events are partitioned. This allows for dynamic load balancing and optimization of consumer workloads. Repartitioning helps in load distribution by adjusting partitions to ensure no single consumer is overwhelmed by an uneven distribution of events, and event reorganization by aligning event streams with the evolving structure of consumer services. Repartitioning is a good strategy for example if we want to have more than one consumer for a particular event stream, we partition the stream by a key that is relevant to the consumer, so that each consumer can process events independently. Some common partition assignment strategies include: Round-robin partitioning, static assignment and custom assignment.
+
+# Deterministic Stream Processing
