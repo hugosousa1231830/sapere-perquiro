@@ -1,9 +1,12 @@
 # sapere-perquiro
 
-This repository functions as a personal sandbox for the exploration and experimentation of various projects aimed at 
-acquiring new skills and developing practical solutions. While it offers valuable opportunities for learning and 
-experimentation, it should not be regarded as a comprehensive source of authoritative knowledge or guidance. The content 
-within this repository primarily serves to document my learning experiences and to provide insight into my ongoing projects.
+Welcome to sapere-perquiro, a repository that might sound like a spell from a Harry Potter book, but it’s actually just my personal sandbox for exploring and experimenting with various projects.
+
+Sapere Perquiro translates to "to seek knowledge" in Latin—because if you’re going to name a repository, why not make it sound impressively ancient and slightly pretentious?
+
+Beyond its impressive name, this repository isn't a definitive source of authoritative knowledge. Here, you’ll find a chronicle of my experiences navigating the tech landscape, including both my successes and my less-than-perfect attempts.
+
+The content here is primarily focused on documenting my learning experiences and providing a glimpse into my current projects.
 
 ## Projects
 
@@ -41,8 +44,8 @@ This project explores relational (RDBMS), NoSQL, and in-memory databases, demons
 application using Spring Boot. It has taken far longer than anticipated, revealing complexities I had not fully anticipated. 
 Despite numerous headaches and ongoing hurdles, I got the architecture to work using a single controller, service and repository interface, with the several repository implementations serving different databases. The use cases need refining, but the project was put on hold for that as it met the original architectural goal.
 
-6. **onlytheories/springboot
+6. **onlytheories/springboot**
 This document explains the relationship between Spring and Spring Boot, highlighting how Spring Boot simplifies the complex configuration of the Spring framework by automating tasks and providing tools like autoconfiguration and dependency injection. It covers key concepts such as IoC (Inversion of Control), dependency injection, beans, component scanning, and the role of application properties. Additionally, it introduces Spring Boot Starters, Spring Initializr, and touches on testing with Spring Boot using JUnit, emphasizing the importance of understanding these tools to effectively manage and troubleshoot Spring applications.
 
-7. **eda_continuation
+7. **eda_continuation**
 This project is currently at the theoretical review stage. Practical aspect is yet to be fully defined.
