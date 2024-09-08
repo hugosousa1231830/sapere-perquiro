@@ -236,3 +236,32 @@ Designing events requires careful consideration to ensure they fully encapsulate
 
 Furthermore, an event stream should maintain a clear logical boundary, containing only events of the same type or category. Mixing different types of events within a single stream can lead to confusion and complicate the processing logic, as it blurs the distinct responsibilities and characteristics of each event type.
 
+Example of an overloaded event:
+```schema
+TypeEnum: Book, Movie
+ActionEnum: Click
+
+ProductEngagement {
+productId: Long,
+productType: TypeEnum,
+actionType: ActionEnum
+}
+```
+The above event combines two different types of products (books and movies) and two different actions (clicks). At first, we may only need to track the engagement with books or movies, but as the system evolves, we may need to differentiate between the two. For example, we may want to track whether a user watched a movie preview or bookmarked a book. Because we tracked these actions in the same event, we now need to add additional fields to distinguish between them, leading to a more complex and less efficient design. Like so:
+```schema
+ProductEngagement {
+productId: Long,
+productType: TypeEnum,
+actionType: ActionEnum,
+
+//Only applies to productType=Movie
+watchedPreview: {null, Boolean},
+//Only applies to productType=Book,actionType=Bookmark
+pageId: {null, Int}
+}
+```
+Which means now the consumer for book events will have to check if the action is Bookmark, and if it is, check the pageId. This is not ideal, as it increases the complexity of the consumer code and makes it harder to maintain and understand. Instead, we should separate the events into distinct categories, each with its own schema, to ensure clarity and consistency.
+
+This is why it is important to consider where the business is at, and where it could potentially evolve to. By designing events with future changes in mind, we can create a more flexible and adaptable system that can accommodate new requirements without significant rework.
+
+# Integrating Event-Driven Architectures with Existing Systems
